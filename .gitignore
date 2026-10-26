@@ -1,0 +1,4 @@
+# Play data stays on your own computer
+*.csv
+.DS_Store
+.claude/

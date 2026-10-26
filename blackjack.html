@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack Coach</title>
+<style>
+:root{
+  --bg:#0f1714; --panel:#17231e; --panel2:#1e2d27; --line:#2c3f37; --text:#e8efe9; --muted:#8fa69a;
+  --hit:#e8efe9; --hitbg:#3a4a43; --stand:#f2c94c; --dbl:#4cc38a; --ds:#3fb8b0; --split:#7aa7ff; --bad:#ff6b6b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+h1{font-size:20px;margin:0;letter-spacing:.3px}
+.rules{color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:6px}
+.tab{background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+.tab.on{color:var(--text);border-color:var(--dbl)}
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+.grid > *{min-width:0}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card{width:52px;height:72px;border-radius:7px;background:#f6f3ea;color:#1a1a1a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.card.empty{background:transparent;border:2px dashed var(--line);color:var(--muted);font-size:14px;font-weight:600;box-shadow:none}
+.card.next{border-color:var(--dbl);color:var(--dbl);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.45}}
+.hand{padding:10px;border-radius:10px;border:1px solid transparent;margin-top:6px}
+.hand.active{border-color:var(--dbl);background:var(--panel2)}
+.hand .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;color:var(--muted)}
+.tot{font-weight:700;color:var(--text);font-size:15px}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--line);color:var(--text);margin-left:6px}
+.badge.bust{background:var(--bad);color:#1a0000}
+.badge.bj{background:var(--stand);color:#1a1400}
+.prompt{margin:14px 0 4px;font-weight:600;color:var(--dbl)}
+.rec{margin-top:14px;border-radius:12px;padding:16px;background:var(--panel2);border:1px solid var(--line)}
+.rec .act{font-size:40px;font-weight:900;line-height:1;letter-spacing:1px}
+.rec .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.rec .why{margin-top:12px;font-size:14px}
+.rec .why b{color:var(--text)}
+.c-H{color:var(--hit)} .c-S{color:var(--stand)} .c-D{color:var(--dbl)} .c-Ds{color:var(--ds)} .c-P{color:var(--split)}
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px 6px;font-weight:700;font-size:14px;cursor:pointer}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn.rec-on{outline:2px solid var(--dbl);background:#1f3b2f}
+.btn kbd,.key kbd{font:600 10px ui-monospace,monospace;color:var(--muted);display:block;margin-top:2px}
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.key{background:#f6f3ea;color:#1a1a1a;border:none;border-radius:9px;padding:14px 0;font-size:20px;font-weight:800;cursor:pointer}
+.key:active{transform:translateY(1px)}
+.tools{display:flex;gap:8px;margin-top:12px}
+.tools .btn{flex:1}
+.help{color:var(--muted);font-size:12px;margin-top:12px}
+.odds{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.odds td,.odds th{padding:3px 2px;text-align:center;border-bottom:1px solid var(--line)}
+.odds th{color:var(--muted);font-weight:600}
+.odds td.cur{background:#1f3b2f;font-weight:800}
+/* chart */
+.charts{display:grid;gap:14px}
+.chart{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.chart th,.chart td{border:1px solid var(--line);text-align:center;padding:5px 0}
+.chart th{background:var(--panel2);color:var(--muted);font-weight:700}
+.chart td{font-weight:700}
+.chart td.v-H{background:#26332e;color:var(--hit)}
+.chart td.v-S{background:#6b5a1d;color:#fff3c4}
+.chart td.v-D{background:#1d5a3f;color:#d6ffe9}
+.chart td.v-Ds{background:#1b5552;color:#d3fffb}
+.chart td.v-Y{background:#1d5a3f;color:#d6ffe9}
+.chart td.v-N{background:#26332e;color:var(--muted)}
+.chart td.hl{outline:3px solid #fff;outline-offset:-3px;position:relative;z-index:1}
+.chart tr.hlrow th{color:var(--text);background:#2c4a3d}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend span i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.note{font-size:12px;color:var(--muted);margin-top:6px}
+.hidden{display:none}
+.oddsbox{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.bar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--line)}
+.bar i{display:block}
+.bar .w,.ddbar .w{background:var(--dbl)} .bar .p,.ddbar .p{background:var(--muted)} .bar .l,.ddbar .l{background:var(--bad)}
+.wpl{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px;font-weight:700;font-size:14px}
+.cw{color:var(--dbl)} .cp{color:var(--muted)} .cl{color:var(--bad)}
+.scroll{overflow-x:auto;margin-top:10px}
+.cmp{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.cmp th{color:var(--muted);font-weight:600;font-size:11px;text-align:right;padding:4px 4px;white-space:nowrap}
+.cmp td{text-align:right;padding:5px 4px;border-top:1px solid var(--line)}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp tr.me td{background:#1f3b2f;font-weight:800}
+.dd{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums}
+.ddbar{height:56px;display:flex;align-items:flex-end;background:var(--bg);border-radius:6px;overflow:hidden;margin-bottom:4px}
+.ddbar i{display:block;width:100%;border-radius:4px 4px 0 0}
+.dd b{display:block} .dd span{color:var(--muted)}
+.finals{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+@media (max-width:520px){.finals{grid-template-columns:repeat(4,1fr)}}
+.finals .btn{padding:11px 2px;font-size:13px}
+.btn.missed{width:100%;margin-top:8px;color:var(--muted)}
+.btn.dbj{width:100%;margin-top:8px;border-color:var(--bad);color:var(--bad)}
+.chip{display:inline-block;font-style:normal;font-weight:800;font-size:12px;padding:3px 9px;border-radius:99px;background:var(--line)}
+.chip.o-W{background:var(--dbl);color:#06210f} .chip.o-L{background:var(--bad);color:#2a0606} .chip.o-P{background:var(--muted);color:#0f1714} .chip.o-U{background:var(--line);color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.tile{background:var(--panel2);border-radius:8px;padding:8px 2px}
+.tile b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.tile span{font-size:11px;color:var(--muted)}
+.facts{margin-top:8px;font-size:13px}
+.facts div{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.facts span{color:var(--muted)}
+.log{font-size:13px}
+.log div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.log em{color:var(--muted);font-style:normal}
+.lo{display:flex;gap:4px}
+.lo .chip{padding:2px 7px;font-size:11px}
+.btn.sm{padding:8px 12px;font-size:13px}
+.btn.sm.wide{width:100%;margin-top:10px}
+.btn.on{border-color:var(--dbl);color:var(--dbl)}
+.sesshead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin:18px 0 8px}
+.sesshead .note{margin-top:0}
+.csvbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.csvok{margin:0;color:var(--dbl);font-weight:600;font-size:13px;word-break:break-all}
+.dashbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.dashbar .label{margin:0}
+select{flex:1;min-width:0;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;font-weight:600}
+.sess{background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:8px}
+.sesstop{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.sesstop span{color:var(--muted);font-variant-numeric:tabular-nums}
+.sessline{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin-top:4px}
+.strip{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}
+.strip .chip{padding:1px 6px;font-size:10px}
+.cmp tr.click{cursor:pointer}
+.cmp tr.click:hover td{background:var(--panel2)}
+.roundtbl td,.roundtbl th{text-align:left}
+.card{flex-direction:column;line-height:1}
+.card small{font-size:15px;margin-top:3px}
+.card.red{color:#c0262d}
+.toggles{display:grid;gap:8px;margin-bottom:14px}
+.tog{display:flex;gap:10px;align-items:flex-start;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;cursor:pointer;font-size:13px}
+.tog input{margin-top:3px;accent-color:var(--dbl)}
+.tog em{display:block;font-style:normal;color:var(--muted);font-size:12px}
+.suits{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
+.key.suit{font-size:22px}
+.key.red{color:#c0262d}
+.key:disabled{opacity:.3;cursor:default}
+.key.pend{outline:3px solid var(--dbl);outline-offset:-3px}
+.btn.save{width:100%;margin-top:10px;border-color:var(--dbl);color:var(--dbl)}
+.verdicts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (max-width:520px){.verdicts{grid-template-columns:1fr}}
+.verdict{background:var(--panel2);border-radius:10px;padding:10px 12px}
+.verdict .vt{font-weight:700;font-size:14px;margin-bottom:6px}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px}
+.pill.ok{background:var(--dbl);color:#06210f} .pill.warn{background:var(--stand);color:#1a1400} .pill.bad{background:var(--bad);color:#2a0606}
+.pill.info{background:var(--split);color:#0a1430} .pill.wait{background:var(--line);color:var(--muted)}
+.label.sec{margin-top:20px}
+.post{display:grid;grid-template-columns:130px 1fr 52px;gap:8px;align-items:center;font-size:13px;padding:3px 0;font-variant-numeric:tabular-nums}
+.post b{text-align:right}
+.post .trk{background:var(--bg);border-radius:99px;overflow:hidden;height:10px}
+.post .trk i{display:block;height:100%;background:var(--split);border-radius:99px}
+input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit}
+.dsrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.dsrow input{accent-color:var(--dbl)}
+.dsrow span{flex:1;min-width:0}
+.dsrow em{display:block;font-style:normal;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.linkx{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline}
+.methods p{font-size:12px;color:var(--muted);margin:0 0 8px}
+.methods b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>♠ Blackjack Coach</h1>
+      <div class="rules">Dealer stands on soft 17 · Double after split allowed · Basic strategy</div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="play">Play</button>
+      <button class="tab" data-tab="dash">Stats</button>
+      <button class="tab" data-tab="lab">Fairness</button>
+      <button class="tab" data-tab="chart">Strategy chart</button>
+    </div>
+  </header>
+
+  <section id="play" class="grid">
+    <div class="panel">
+      <div class="label">Your hand<span id="handsLabel"></span></div>
+      <div id="hands"></div>
+      <div class="label" style="margin-top:16px" id="dealerLabel">Dealer upcard</div>
+      <div class="row" id="dealer"></div>
+      <div id="othersWrap" class="hidden"><div class="label" style="margin-top:16px">Other players' cards</div><div class="row" id="others"></div></div>
+      <div class="prompt" id="prompt"></div>
+      <div id="rec"></div>
+    </div>
+    <div class="panel">
+      <div class="toggles">
+        <label class="tog"><input type="checkbox" id="labTog"><span><b>Lab mode</b><em>Also record suits, the dealer's cards and other players' cards, for the Fairness tab</em></span></label>
+        <label class="tog"><input type="checkbox" id="sameTog"><span><b>Same table as a friend</b><em>Your logs get merged on the Fairness tab so shared cards are only counted once</em></span></label>
+      </div>
+      <div class="label">Tap the card (or use the keyboard)</div>
+      <div class="pad" id="pad"></div>
+      <div class="suits hidden" id="suits"></div>
+      <div class="tools">
+        <button class="btn" id="undo">Undo<kbd>Backspace</kbd></button>
+        <button class="btn" id="reset">New hand<kbd>N / Esc</kbd></button>
+      </div>
+      <div class="help">Keys: <b>2–9</b>, <b>0</b> or <b>T</b> = 10, <b>J Q K</b>, <b>A</b> = Ace · Moves: <b>H</b>it <b>S</b>tand <b>D</b>ouble s<b>P</b>lit · <b>B</b> = dealer has blackjack. If it says Hit, you can just enter the card you got. In lab mode, press the suit after each card: <b>S H D C</b>, or <b>X</b> if you didn't see it.</div>
+      <div class="sesshead">
+        <div><div class="label">This session</div><div class="note" id="sessMeta"></div></div>
+        <button class="btn sm" id="newSession">New session</button>
+      </div>
+      <div id="stats"></div>
+      <div class="label" style="margin-top:18px">CSV file</div>
+      <div class="csvbar"></div>
+      <div class="label" style="margin-top:18px">How often the dealer busts (stands on soft 17)</div>
+      <table class="odds" id="odds"></table>
+    </div>
+  </section>
+
+  <section id="dash" class="grid hidden">
+    <div class="panel">
+      <div class="dashbar"><label class="label" for="daySel">Day</label><select id="daySel"></select></div>
+      <div id="dashBody"></div>
+    </div>
+    <div class="panel">
+      <div class="label">CSV file</div>
+      <div class="csvbar"></div>
+      <p class="note" style="margin-top:14px">One row per hand: time, session, your name, your cards and total, whether you doubled, the dealer's upcard, cards and final total, other players' cards, the result, and the chance of winning at your first move. Suits are added to each card in lab mode (Kh = K♥). A new session starts after an hour without a round, or when you press New session on the Play tab.</p>
+    </div>
+  </section>
+
+  <section id="lab" class="grid hidden">
+    <div class="panel" id="labBody"></div>
+    <div class="panel">
+      <div class="label">Data</div>
+      <div id="labData"></div>
+      <input type="file" id="importIn" accept=".csv,text/csv" multiple hidden>
+      <button class="btn sm wide" id="importBtn">Add a friend's CSV</button>
+      <label class="label" for="nameIn" style="display:block;margin-top:18px">Your name (written into your CSV)</label>
+      <input type="text" id="nameIn" maxlength="30" placeholder="So your friend knows whose data it is">
+      <div class="label" style="margin-top:18px">How the tests work</div>
+      <div class="methods">
+        <p><b>Card mix.</b> Every card you've recorded (yours, the dealer's and other players') is counted and compared with a real deck, where each rank is 1 in 13 and 10-value cards are 4 in 13. The percentage is the chance a fair deal would look at least this uneven: under 5% is worth watching, under 1% is suspicious.</p>
+        <p><b>Dealer results.</b> How often the dealer finished on each total, compared with the exact math for the upcards they actually showed. Dealer blackjacks are listed separately.</p>
+        <p><b>Decks.</b> Cards in one round come out of the same shoe. With one deck the exact same card can never appear twice in a round; with more decks it gets a little more likely, and most likely if every card is drawn at random. The tab works out which deck count best explains every round. Suits make this about ten times more sensitive.</p>
+        <p><b>Between rounds.</b> If GTA keeps dealing from the same shoe, cards from one round are missing from the next. This compares that with a fresh shuffle each round, looking back up to 10 rounds played within 5 minutes of each other. It only knows the cards you recorded, so it errs towards "not clear yet".</p>
+        <p><b>Same table.</b> Rounds you both marked "Same table as a friend", logged within 2 minutes of each other with the same dealer upcard, count as one round, and each card is only counted once.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="chart" class="hidden">
+    <div class="charts" id="charts"></div>
+    <div class="legend">
+      <span><i style="background:#26332e;border:1px solid var(--line)"></i>H = Hit</span>
+      <span><i style="background:#6b5a1d"></i>S = Stand</span>
+      <span><i style="background:#1d5a3f"></i>D = Double (else Hit)</span>
+      <span><i style="background:#1b5552"></i>Ds = Double (else Stand)</span>
+      <span><i style="background:#1d5a3f"></i>Y = Split</span>
+    </div>
+    <p class="note">The white outline marks the cell for your current decision. Two cells differ from the common online chart, which assumes the dealer hits soft 17: <b>A,8 vs 6 = Stand</b> and <b>A,7 vs 2 = Stand</b>. Everything else is the same.</p>
+  </section>
+</div>
+
+<script>
+const UP = ['2','3','4','5','6','7','8','9','10','A'];
+const PAD = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const val = r => r==='A' ? 11 : (['10','J','Q','K'].includes(r) ? 10 : +r);
+const col = r => { const v = val(r); return v===11 ? 9 : v-2; };
+const show = r => r==='10' ? '10' : r;
+
+// Basic strategy: 4+ decks, dealer stands on soft 17, double after split, no surrender.
+// Columns: dealer 2 3 4 5 6 7 8 9 10 A.  d = Ds (double, otherwise stand)
+const HARD = {17:'SSSSSSSSSS',16:'SSSSSHHHHH',15:'SSSSSHHHHH',14:'SSSSSHHHHH',13:'SSSSSHHHHH',
+  12:'HHSSSHHHHH',11:'DDDDDDDDDD',10:'DDDDDDDDHH',9:'HDDDDHHHHH',8:'HHHHHHHHHH'};
+const SOFT = {20:'SSSSSSSSSS',19:'SSSSSSSSSS',18:'SddddSSHHH',17:'HDDDDHHHHH',
+  16:'HHDDDHHHHH',15:'HHDDDHHHHH',14:'HHHDDHHHHH',13:'HHHDDHHHHH'};
+const PAIRS = {11:'YYYYYYYYYY',10:'NNNNNNNNNN',9:'YYYYYNYYNN',8:'YYYYYYYYYY',7:'YYYYYYNNNN',
+  6:'YYYYYNNNNN',5:'NNNNNNNNNN',4:'NNNYYNNNNN',3:'YYYYYYNNNN',2:'YYYYYYNNNN'};
+const BUST = [35,37,40,42,42,26,24,23,23,17]; // approx % dealer busts, S17
+
+// ---- Odds engine: infinite deck, dealer stands on soft 17, dealer has already checked for blackjack ----
+const DRAW = [[2,1/13],[3,1/13],[4,1/13],[5,1/13],[6,1/13],[7,1/13],[8,1/13],[9,1/13],[10,4/13],[11,1/13]];
+function addCard(t, soft, v){
+  if (v===11) return t+11<=21 ? [t+11, true] : [t+1, soft];
+  t += v;
+  return (t>21 && soft) ? [t-10, false] : [t, soft];
+}
+// Dealer final totals as [17,18,19,20,21,bust]
+const dealerMemo = new Map();
+function dealerFrom(t, soft){
+  if (t>21) return [0,0,0,0,0,1];
+  if (t>=17){ const r = [0,0,0,0,0,0]; r[t-17] = 1; return r; }
+  const key = t+','+soft;
+  if (dealerMemo.has(key)) return dealerMemo.get(key);
+  const r = [0,0,0,0,0,0];
+  for (const [v,p] of DRAW){ const [nt,ns] = addCard(t, soft, v); dealerFrom(nt, ns).forEach((x,i) => r[i] += p*x); }
+  dealerMemo.set(key, r);
+  return r;
+}
+function dealerDist(up){
+  const uv = val(up), r = [0,0,0,0,0,0];
+  let tot = 0;
+  for (const [v,p] of DRAW){
+    if ((uv===11 && v===10) || (uv===10 && v===11)) continue; // no dealer blackjack, or the hand would be over
+    tot += p;
+    const [t,s] = addCard(uv, uv===11, v);
+    dealerFrom(t, s).forEach((x,i) => r[i] += p*x);
+  }
+  return r.map(x => x/tot);
+}
+const mix = list => list.reduce((a,[o,p]) => ({w:a.w+p*o.w, p:a.p+p*o.p, l:a.l+p*o.l, ev:a.ev+p*o.ev}), {w:0,p:0,l:0,ev:0});
+const better = (a,b) => b.ev>a.ev ? b : a;
+// Win / push / lose / expected value (in bets) for each move available on this hand
+function oddsFor(h, D){
+  const stand = t => {
+    if (t>21) return {w:0,p:0,l:1,ev:-1};
+    let w = D[5];
+    for (let k=17; k<t; k++) w += D[k-17];
+    const p = t>=17 ? D[t-17] : 0, l = 1-w-p;
+    return {w, p, l, ev:w-l};
+  };
+  const memo = new Map();
+  const best = (t,s) => { // stand or keep hitting, whichever pays more
+    if (t>21) return {w:0,p:0,l:1,ev:-1};
+    const k = t+','+s;
+    if (memo.has(k)) return memo.get(k);
+    const r = t<21 ? better(stand(t), hit(t,s)) : stand(t);
+    memo.set(k, r);
+    return r;
+  };
+  const hit = (t,s) => mix(DRAW.map(([v,p]) => [best(...addCard(t,s,v)), p]));
+  const dbl = (t,s) => { const o = mix(DRAW.map(([v,p]) => [stand(addCard(t,s,v)[0]), p])); return {...o, ev:o.ev*2}; };
+  const {total, soft} = info(h.cards), out = {S: stand(total)};
+  if (total<21) out.H = hit(total, soft);
+  if (canDouble(h)) out.D = dbl(total, soft);
+  if (canSplit(h)){
+    const v = val(h.cards[0]);
+    const one = mix(DRAW.map(([c,p]) => {
+      const [t,s] = addCard(v, v===11, c);
+      return [v===11 ? stand(t) : [best(t,s), dbl(t,s)].reduce(better), p]; // split Aces get one card
+    }));
+    out.P = {...one, ev:one.ev*2};
+  }
+  return out;
+}
+
+// Lab mode records suits plus the dealer's and other players' cards, for the Fairness tab
+const SUITS = {s:'♠', h:'♥', d:'♦', c:'♣'};
+const splitCode = c => /[shdc]$/.test(c) ? [c.slice(0,-1), c.slice(-1)] : [c, ''];
+const rankOf = c => splitCode(c)[0];
+let LAB = false, SAME = false, NAME = '', PEND = null; // PEND: rank waiting for its suit
+try { LAB = localStorage.getItem('bj-lab')==='1'; SAME = localStorage.getItem('bj-same')==='1'; NAME = localStorage.getItem('bj-name') || ''; } catch(e){}
+const setPref = (k,v) => { try { localStorage.setItem(k, v); } catch(e){} };
+
+const newHand = (cards=[], fromSplit=false, suits=[]) => ({cards, suits, fromSplit, splitAces:fromSplit && cards[0]==='A', doubled:false, done:false, result:null});
+let S, history = [];
+function fresh(){ S = {dealer:null, upSuit:'', dc:[], oc:[], lab:LAB, dbj:false, hands:[newHand()], active:0, split:false, phase:'player', exp:null, dec:0, fol:0}; }
+fresh();
+const save = () => { history.push(JSON.stringify({S, n: LOG.length})); if (history.length>200) history.shift(); };
+
+function info(cards){
+  let t = 0, aces = 0;
+  for (const c of cards){ const v = val(c); if (v===11){ aces++; t+=1; } else t+=v; }
+  const soft = aces>0 && t+10<=21;
+  return {total: soft ? t+10 : t, soft};
+}
+const H = () => S.hands[S.active];
+const canDouble = h => h.cards.length===2 && !h.splitAces;
+const canSplit = h => h.cards.length===2 && val(h.cards[0])===val(h.cards[1]) && !S.split;
+
+function advise(h){
+  const c = col(S.dealer), {total, soft} = info(h.cards), refs = [];
+  if (canSplit(h)){
+    const pv = val(h.cards[0]);
+    refs.push({t:'pairs', r:pv, c});
+    if (PAIRS[pv][c]==='Y') return {code:'P', refs, total, soft};
+  }
+  let code;
+  if (soft && total>=13 && total<=20){ code = SOFT[total][c]; refs.push({t:'soft', r:total, c}); }
+  else if (soft) code = total===21 ? 'S' : 'H';
+  else { const r = Math.max(8, Math.min(17, total)); code = HARD[r][c]; refs.push({t:'hard', r, c}); }
+  let raw = code;
+  if (code==='d') { raw='Ds'; code = canDouble(h) ? 'D' : 'S'; }
+  else if (code==='D') code = canDouble(h) ? 'D' : 'H';
+  return {code, raw, refs, total, soft};
+}
+
+function why(a, h){
+  const d = S.dealer, dv = val(d), weak = dv>=2 && dv<=6, dn = d==='A' ? 'an Ace' : `a ${dv}`;
+  const bust = BUST[col(d)], t = a.total;
+  const fallback = (a.raw==='D' && a.code==='H') ? ' <b>You can only double on your first two cards, so hit instead.</b>' :
+                   (a.raw==='Ds' && a.code==='S') ? ' <b>You can only double on your first two cards, so stand instead.</b>' : '';
+  if (a.code==='P'){
+    const p = val(h.cards[0]);
+    return ({
+      11:'Always split Aces. Two hands that each start on 11 are far better than one soft 12.',
+      8:'Always split 8s. Hard 16 is the worst hand in blackjack, and two hands starting on 8 lose much less.',
+      9:`Split 9s against ${dn}. A hand starting on 9 beats your 18 here. (Stand against 7, 10 and Ace: 18 already wins or they're too strong.)`,
+      7:`Split 7s against ${dn}. Hard 14 is a losing hand, and two hands starting on 7 do better against a dealer this weak.`,
+      6:`Split 6s against ${dn}. The dealer busts about ${bust}% of the time, so you want more money on the table, not a stiff 12.`,
+      4:`Split 4s against ${dn}. Each new hand can be doubled, and the dealer is at their weakest.`,
+      3:`Split small pairs against ${dn}. With double after split, each new hand is better than a hard ${t}.`,
+      2:`Split small pairs against ${dn}. With double after split, each new hand is better than a hard ${t}.`
+    })[p];
+  }
+  let s = '';
+  if (a.soft && t<=21){
+    if (a.code==='S' || (a.raw==='Ds' && a.code==='S')) s = t>=19 ? `Soft ${t} is a strong hand. Stand.` :
+      `Soft 18 against ${dn}: 18 is a good enough total here, so stand.`;
+    else if (a.code==='D') s = `Soft ${t} can't bust with one card, and the dealer's ${dv} busts about ${bust}% of the time. Double while they're weak.`;
+    else s = t===18 ? `Soft 18 loses to a dealer showing ${dn} more often than you'd think. Hitting can't bust you, so try to improve.` :
+      `Soft ${t} can't bust with one more card, and standing on ${t} rarely wins. Hit.`;
+  } else {
+    if (t>=17) s = `Hard ${t}: too many cards would bust you. Stand.`;
+    else if (t>=13 && a.code==='S') s = `Dealer shows ${dn} and busts about ${bust}% of the time. Don't risk busting; let them do it.`;
+    else if (t===12 && a.code==='S') s = `12 against ${dn}: only 10-value cards bust you, and the dealer busts about ${bust}% of the time. Stand.`;
+    else if (t===12 && weak) s = `12 against a ${dv} is close, but the dealer only busts about ${bust}% of the time. Hitting wins slightly more often.`;
+    else if (t>=12) s = `Dealer shows ${dn}, so expect them to finish on 17 or more. Standing on ${t} usually loses, so take the risk and hit.`;
+    else if (t===11) s = `11 is the best hand to double on: any 10-value card gives you 21.`;
+    else if (t===10 && a.raw==='D') s = `10 against ${dn}: you're ahead, so double. Lots of 10-value cards make 20.`;
+    else if (t===10) s = `10 against ${dn}: the dealer is too strong to double. Just hit.`;
+    else if (t===9 && a.raw==='D') s = `9 against a weak ${dv}: worth doubling while the dealer busts about ${bust}% of the time.`;
+    else s = `Hard ${t} can't bust with one card. Hit.`;
+  }
+  return s + fallback;
+}
+
+// ---- Round log: kept in this browser, and written to a CSV file once one is connected ----
+const HOUR = 3600e3, LEGACY_DATE = '2026-10-24';
+let LOG = [], CUR = null;
+try { LOG = JSON.parse(localStorage.getItem('bj-log') || '[]'); } catch(e){}
+try { CUR = JSON.parse(localStorage.getItem('bj-session') || 'null'); } catch(e){}
+// Rounds saved before timestamps existed: dated 24 Oct 2026 as one session
+LOG.forEach((r,i) => { if (!r.id){ r.id = 'r0-'+(i+1); r.t = null; r.d = LEGACY_DATE; r.s = 1; } });
+const pad2 = n => String(n).padStart(2,'0');
+const dayOf = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
+const clock = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+function saveCur(){ try { localStorage.setItem('bj-session', JSON.stringify(CUR)); } catch(e){} }
+function persist(){
+  try { localStorage.setItem('bj-log', JSON.stringify(LOG)); } catch(e){}
+  writeCSV();
+}
+function newSession(){
+  CUR = {id: Math.max(0, CUR ? CUR.id : 0, ...LOG.map(r => r.s)) + 1, started: Date.now()};
+  saveCur();
+}
+function checkSession(){ // a new session starts after an hour with no rounds
+  const last = CUR && [...LOG].reverse().find(r => r.s===CUR.id);
+  const ref = last ? last.t : CUR && CUR.started;
+  if (!ref || Date.now()-ref > HOUR) newSession();
+}
+function note(m){ // log a decision: was it the advised move, and what were the odds at the first one
+  const h = H(), a = advise(h);
+  S.dec++; if (a.code===m) S.fol++;
+  if (!S.exp){ const o = oddsFor(h, dealerDist(S.dealer))[m]; S.exp = {w:o.w, n: m==='P' ? 2 : 1}; }
+}
+function outcome(h, R){
+  if (h.result==='Bust') return 'L';
+  if (R==='missed') return '?';
+  const bj = h.result==='Blackjack!';
+  if (R==='bj') return bj ? 'P' : 'L';
+  if (bj || R==='bust') return 'W';
+  const t = info(h.cards).total;
+  return t>R ? 'W' : t===R ? 'P' : 'L';
+}
+function recordRound(R){
+  S.out = S.hands.map(h => outcome(h, R));
+  S.final = R; S.phase = 'recorded';
+  checkSession();
+  const now = Date.now();
+  const entry = {id: 'r'+now, t: now, d: dayOf(now), s: CUR.id, hands: S.hands.map(h => h.cards), dbl: S.hands.map(h => h.doubled),
+    up: S.dealer, dealer: R, out: S.out, exp: S.exp, dec: S.dec, fol: S.fol};
+  if (SAME) entry.same = 1;
+  if (S.lab) Object.assign(entry, {lab: 1, hs: S.hands.map(h => [...(h.suits || [])]), us: S.upSuit || '', dc: [...S.dc], oc: [...S.oc]});
+  LOG.push(entry);
+  persist();
+}
+function finish(R){
+  if (S.phase==='done'){ save(); recordRound(R); }
+  else if (S.phase==='dcards'){ save(); toOthers(R); } // lab: total tapped instead of the dealer's cards
+  else return;
+  render();
+}
+function dealerBlackjack(){
+  save();
+  S.hands.forEach(h => { if (!h.done){ h.done = true; h.result = 'Dealer blackjack'; } });
+  if (S.lab){ S.dbj = true; S.phase = 'dcards'; } // lab: still collect the hole card and other players' cards
+  else recordRound('bj');
+  render();
+}
+const dealerCards = () => S.dealer ? [S.dealer, ...S.dc.map(rankOf)] : [];
+function toOthers(R){ S.final = R; S.phase = 'others'; }
+function saveLabRound(){ if (S.phase!=='others') return; save(); recordRound(S.final); render(); }
+
+// ---- CSV ----
+const COLS = ['round_id','timestamp','date','session','player','hand','player_cards','player_total','doubled','dealer_upcard','dealer_cards','dealer_final',
+  'other_cards','result','moves','followed_advice','win_chance','lab','same_table'];
+const RES = {W:'Won', L:'Lost', P:'Push', '?':'Unknown'}, RES_BACK = {Won:'W', Lost:'L', Push:'P', Unknown:'?'};
+const finalWord = R => R===null ? 'n/a' : R==='bust' ? 'Bust' : R==='bj' ? 'Blackjack' : R==='missed' ? 'Missed' : String(R);
+const finalBack = w => w==='n/a' ? null : w==='Bust' ? 'bust' : w==='Blackjack' ? 'bj' : w==='Missed' ? 'missed' : +w;
+const stamp = ms => ms ? `${dayOf(ms)} ${clock(ms)}:${pad2(new Date(ms).getSeconds())}` : '';
+function toCSV(){
+  const q = v => { v = v==null ? '' : String(v); return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; };
+  const rows = [COLS];
+  for (const r of LOG) r.hands.forEach((c,i) => rows.push([r.id, stamp(r.t), r.d, r.s, NAME, i+1,
+    c.map((x,j) => x + ((r.hs && r.hs[i] && r.hs[i][j]) || '')).join(' '), info(c).total, r.dbl ? (r.dbl[i] ? 'yes' : 'no') : '',
+    r.up ? r.up + (r.us || '') : '', (r.dc || []).join(' '), finalWord(r.dealer), (r.oc || []).join(' '),
+    RES[r.out[i]], r.dec ?? '', r.fol ?? '', r.exp ? r.exp.w.toFixed(3) : '', r.lab ? 'yes' : '', r.same ? 'yes' : '']));
+  return rows.map(row => row.map(q).join(',')).join('\n') + '\n';
+}
+function parseCSV(text){
+  const rows = []; let row = [], f = '', q = false;
+  for (let i=0; i<text.length; i++){
+    const c = text[i];
+    if (q){ if (c==='"'){ if (text[i+1]==='"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c==='"') q = true;
+    else if (c===','){ row.push(f); f = ''; }
+    else if (c==='\n' || c==='\r'){ if (c==='\r' && text[i+1]==='\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x!==''));
+}
+function fromCSV(text){ // one row per hand -> one entry per round
+  const [head, ...rows] = parseCSV(text);
+  if (!head || head[0]!=='round_id') return [];
+  const ix = Object.fromEntries(head.map((h,i) => [h,i])), get = (row,k) => row[ix[k]] ?? '';
+  const byId = new Map();
+  for (const row of rows){
+    const id = get(row,'round_id');
+    let r = byId.get(id);
+    if (!r){
+      const ts = get(row,'timestamp'), w = get(row,'win_chance'), [up, us] = splitCode(get(row,'dealer_upcard'));
+      const list = k => get(row,k).split(' ').filter(Boolean);
+      r = {id, t: ts ? new Date(ts.replace(' ','T')).getTime() : null, d: get(row,'date'), s: +get(row,'session'), pl: get(row,'player'),
+        hands: [], hs: [], dbl: [], up: up || null, us, dc: list('dealer_cards'), oc: list('other_cards'),
+        dealer: finalBack(get(row,'dealer_final')), out: [],
+        dec: +get(row,'moves') || 0, fol: +get(row,'followed_advice') || 0, exp: w!=='' ? {w:+w, n:0} : null};
+      if (get(row,'lab')==='yes') r.lab = 1;
+      if (get(row,'same_table')==='yes') r.same = 1;
+      byId.set(id, r);
+    }
+    const codes = get(row,'player_cards').split(' ').filter(Boolean).map(splitCode);
+    r.hands.push(codes.map(x => x[0])); r.hs.push(codes.map(x => x[1]));
+    r.dbl.push(get(row,'doubled')==='yes');
+    r.out.push(RES_BACK[get(row,'result')] || '?');
+    if (r.exp) r.exp.n = r.hands.length;
+  }
+  return [...byId.values()];
+}
+const sortLog = list => list.map((r,i) => [r,i])
+  .sort((a,b) => a[0].d<b[0].d ? -1 : a[0].d>b[0].d ? 1 : ((a[0].t||0)-(b[0].t||0) || a[1]-b[1])).map(x => x[0]);
+
+// The CSV file handle is remembered in IndexedDB so the file stays connected across reloads
+function idb(){ return new Promise((res,rej) => { const r = indexedDB.open('bj', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function kvGet(k){ const db = await idb(); return new Promise((res,rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+async function kvSet(k,v){ const db = await idb(); return new Promise((res,rej) => { const tx = db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+
+const IN_FRAME = window.self!==window.top;
+const CAN_FILE = 'showSaveFilePicker' in window && !IN_FRAME;
+let FILE = null, csvState = CAN_FILE ? 'none' : 'unsupported', csvMsg = '', writing = Promise.resolve();
+function writeCSV(){
+  if (!FILE || csvState!=='connected') return;
+  const csv = toCSV();
+  writing = writing.then(async () => {
+    const w = await FILE.createWritable();
+    await w.write(csv); await w.close();
+    csvMsg = `Last saved ${clock(Date.now())}`;
+  }).catch(() => { csvState = 'error'; csvMsg = 'Couldn\'t write to the CSV file. It may have been moved or opened elsewhere.'; })
+    .finally(renderCSV);
+}
+async function attach(h){ // read the file, bring back any rounds this browser is missing, then write everything
+  const text = await (await h.getFile()).text();
+  if (text.trim() && !text.startsWith('round_id')) throw new Error('notours');
+  const have = new Set(LOG.map(r => r.id)), extra = fromCSV(text).filter(r => !have.has(r.id));
+  if (extra.length) LOG = sortLog([...LOG, ...extra]);
+  FILE = h; csvState = 'connected'; csvMsg = extra.length ? `Brought back ${extra.length} rounds from the file` : '';
+  persist(); render();
+}
+async function connect(kind){
+  try {
+    const opts = {types: [{description: 'CSV file', accept: {'text/csv': ['.csv']}}]};
+    const h = kind==='new' ? await showSaveFilePicker({...opts, suggestedName: 'blackjack-log.csv'}) : (await showOpenFilePicker(opts))[0];
+    if (await h.requestPermission({mode: 'readwrite'})!=='granted') throw new Error('denied');
+    await attach(h);
+    try { await kvSet('csv', h); } catch(e){}
+  } catch(e){
+    if (e.name==='AbortError') return;
+    csvState = FILE ? csvState : 'error';
+    csvMsg = e.message==='notours' ? 'That file isn\'t a Blackjack Coach CSV, so I didn\'t touch it. Choose "New CSV file" instead.' : 'Couldn\'t use that file. Try again.';
+  }
+  renderCSV();
+}
+async function reconnect(){
+  try {
+    if (await FILE.requestPermission({mode: 'readwrite'})==='granted') await attach(FILE);
+  } catch(e){ csvState = 'error'; csvMsg = 'Couldn\'t reopen the CSV file. It may have been moved. Connect it again.'; }
+  renderCSV();
+}
+async function restoreFile(){
+  if (!CAN_FILE) return renderCSV();
+  try {
+    const h = await kvGet('csv');
+    if (!h) return renderCSV();
+    FILE = h;
+    if (await h.queryPermission({mode: 'readwrite'})==='granted') await attach(h);
+    else csvState = 'reconnect';
+  } catch(e){ csvState = 'reconnect'; }
+  renderCSV();
+}
+function exportCSV(btn){
+  const csv = toCSV(), label = btn.textContent;
+  const flash = t => { btn.textContent = t; setTimeout(() => btn.textContent = label, 2500); };
+  if (IN_FRAME){ // downloads are blocked inside the claude.ai viewer, so copy instead
+    navigator.clipboard.writeText(csv).then(() => flash('Copied. Paste into Numbers or Sheets'), () => flash('Copy didn\'t work in this browser'));
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+  a.download = `blackjack-${dayOf(Date.now())}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function renderCSV(){
+  const name = FILE ? FILE.name : '';
+  const pick = '<button class="btn sm" data-csv="new">New CSV file</button><button class="btn sm" data-csv="open">Open existing CSV</button>';
+  const body = {
+    unsupported: `<p class="note">Saving straight to a CSV file only works when you open the local file in Chrome. You can still ${IN_FRAME ? 'copy' : 'download'} everything below.</p>`,
+    none: `<p class="note">Not connected. Pick a CSV file and every round is written to it as soon as you finish it.</p><div class="csvbtns">${pick}</div>`,
+    connected: `<p class="csvok">Saving every round to <b>${name}</b></p>`,
+    reconnect: `<p class="note">Chrome needs your OK to keep writing to <b>${name}</b>. Rounds are kept in the browser until you do.</p><div class="csvbtns"><button class="btn sm on" data-csv="re">Reconnect ${name}</button></div>`,
+    error: `<div class="csvbtns">${pick}</div>`
+  }[csvState];
+  const html = `${body}${csvMsg ? `<p class="note">${csvMsg}</p>` : ''}
+    <button class="btn sm wide" data-csv="export">${IN_FRAME ? 'Copy CSV' : 'Download CSV'} (${LOG.length} rounds)</button>`;
+  document.querySelectorAll('.csvbar').forEach(el => el.innerHTML = html);
+}
+
+function onCard(r, suit=''){
+  PEND = null;
+  save();
+  if (S.phase==='done') recordRound('missed');
+  if (S.phase==='recorded') fresh();
+  if (S.phase==='player'){
+    H().cards.push(r); H().suits.push(suit);
+    if (H().cards.length===2){
+      if (info(H().cards).total===21){ H().done = true; H().result = 'Blackjack!'; S.phase = S.lab ? 'dcards' : 'done'; }
+      else S.phase = 'dealer';
+    }
+  }
+  else if (S.phase==='dealer'){ S.dealer = r; S.upSuit = suit; S.phase = 'decide'; }
+  else if (S.phase==='await' || S.phase==='decide'){ if (S.phase==='decide') note('H'); H().cards.push(r); H().suits.push(suit); afterCard(); }
+  else if (S.phase==='dcards'){ // lab: dealer's hole card and hits; stops by itself at 17+ (dealer stands on soft 17)
+    if (!S.dealer){ S.dealer = r; S.upSuit = suit; }
+    else {
+      S.dc.push(r+suit);
+      const d = dealerCards(), {total} = info(d);
+      if (S.dbj || (d.length===2 && total===21)) toOthers('bj');
+      else if (total>=17) toOthers(total>21 ? 'bust' : total);
+    }
+  }
+  else if (S.phase==='others') S.oc.push(r+suit);
+  render();
+}
+function afterCard(){
+  const h = H(), {total} = info(h.cards);
+  if (total>21){ h.done = true; h.result = 'Bust'; }
+  else if (h.doubled){ h.done = true; h.result = `Doubled: ${total}`; }
+  else if (total===21){ h.done = true; h.result = '21'; }
+  else if (h.splitAces && h.cards.length===2){ h.done = true; h.result = `Split Aces: ${total}`; }
+  if (h.done) nextHand(); else S.phase = 'decide';
+}
+function nextHand(){
+  const i = S.hands.findIndex(h => !h.done);
+  if (i<0){
+    if (S.lab){ S.phase = 'dcards'; return; }
+    S.phase = 'done';
+    if (S.hands.every(h => h.result==='Bust')) recordRound(null); // dealer's cards don't matter
+    return;
+  }
+  S.active = i; S.phase = S.hands[i].cards.length<2 ? 'await' : 'decide';
+}
+function act(m){
+  if (S.phase!=='decide') return;
+  const h = H();
+  if (m==='D' && !canDouble(h)) return;
+  if (m==='P' && !canSplit(h)) return;
+  save();
+  note(m);
+  if (m==='H') S.phase = 'await';
+  if (m==='S'){ h.done = true; h.result = `Stood on ${info(h.cards).total}`; nextHand(); }
+  if (m==='D'){ h.doubled = true; S.phase = 'await'; }
+  if (m==='P'){
+    const [a,b] = h.cards, [sa='', sb=''] = h.suits || [];
+    S.hands.splice(S.active, 1, newHand([a], true, [sa]), newHand([b], true, [sb]));
+    S.split = true; S.phase = 'await';
+  }
+  render();
+}
+function undo(){
+  if (!history.length) return;
+  const snap = JSON.parse(history.pop());
+  S = snap.S;
+  if (LOG.length>snap.n){ LOG.length = snap.n; persist(); } // undoing a saved round removes it from the log
+  render();
+}
+function reset(){ PEND = null; save(); fresh(); render(); }
+
+const red = suit => suit==='h' || suit==='d';
+const cardEl = (r, cls='', suit='') => `<div class="card ${cls} ${red(suit) ? 'red' : ''}">${r ? show(r) : ''}${suit ? `<small>${SUITS[suit]}</small>` : ''}</div>`;
+const cardCode = (code, cls='') => { const [r, s] = splitCode(code); return cardEl(r, cls, s); };
+const handSummary = () => S.hands.map((h,i) => `${S.hands.length>1 ? `Hand ${i+1}: ` : ''}${h.result}`).join(' · ');
+function renderPad(){
+  document.getElementById('pad').innerHTML = PAD.map(r => `<button class="key ${PEND===r ? 'pend' : ''}" data-card="${r}">${show(r)}</button>`).join('');
+  const el = document.getElementById('suits');
+  el.classList.toggle('hidden', !LAB);
+  el.innerHTML = !LAB ? '' : Object.entries(SUITS).map(([k,v]) =>
+      `<button class="key suit ${red(k) ? 'red' : ''}" data-suit="${k}" ${PEND ? '' : 'disabled'}>${v}<kbd>${k.toUpperCase()}</kbd></button>`).join('')
+    + `<button class="key suit" data-suit="" ${PEND ? '' : 'disabled'}>?<kbd>X · didn't see</kbd></button>`;
+}
+const NAMES = {H:'HIT', S:'STAND', D:'DOUBLE', P:'SPLIT'};
+const SUBS = {H:'Take another card', S:'Take no more cards', D:'Double your bet, take exactly one card', P:'Split into two hands (you can double each one)'};
+
+function render(){
+  const ph = S.phase;
+  const drow = S.dealer ? [cardEl(S.dealer, '', S.upSuit), ...S.dc.map(c => cardCode(c))] : [];
+  if (ph==='dealer' || ph==='dcards') drow.push(cardEl(ph==='dcards' ? '?' : '', 'empty next'));
+  if (!drow.length) drow.push(cardEl('', 'empty'));
+  document.getElementById('dealer').innerHTML = drow.join('');
+  const dt = info(dealerCards()).total;
+  document.getElementById('dealerLabel').textContent = S.dc.length ? `Dealer · ${dt>21 ? `bust (${dt})` : dt}` : 'Dealer upcard';
+  const showOthers = S.lab && (ph==='others' || S.oc.length>0);
+  document.getElementById('othersWrap').classList.toggle('hidden', !showOthers);
+  document.getElementById('others').innerHTML = !showOthers ? '' :
+    S.oc.map(c => cardCode(c)).join('') + (ph==='others' ? cardEl('+', 'empty next') : '');
+  renderPad();
+  document.getElementById('handsLabel').textContent = S.hands.length>1 ? 's' : '';
+
+  let a = null;
+  if (ph==='decide') a = advise(H());
+
+  document.getElementById('hands').innerHTML = S.hands.map((h, i) => {
+    const {total, soft} = info(h.cards);
+    const isAct = i===S.active && !['done','recorded','dcards','others'].includes(ph);
+    const slots = h.cards.map((c,j) => cardEl(c, '', (h.suits || [])[j]));
+    if (isAct && (ph==='player' || ph==='await')) slots.push(cardEl('?', 'empty next'));
+    while (ph==='player' && slots.length<2) slots.push(cardEl('', 'empty'));
+    const tl = h.cards.length ? (total>21 ? `${total}` : `${soft ? 'Soft' : 'Hard'} ${total}`) : '';
+    const bcls = h.result==='Bust' ? 'bust' : (h.result==='Blackjack!' ? 'bj' : '');
+    return `<div class="hand ${isAct && S.hands.length>1 ? 'active' : ''}">
+      <div class="meta"><span>${S.hands.length>1 ? `Hand ${i+1}` : ''}${h.doubled ? '<span class="badge">×2 bet</span>' : ''}</span>
+      <span><span class="tot">${tl}</span>${h.result ? `<span class="badge ${bcls}">${h.result}</span>` : ''}</span></div>
+      <div class="row">${slots.join('')}</div></div>`;
+  }).join('');
+
+  const pr = {dealer:"Now enter the dealer's upcard",
+    player: H().cards.length ? 'Enter your second card' : 'Enter your first card',
+    decide: '', done: 'Round over. Tap what the dealer finished on.',
+    recorded: 'Saved. Enter your first card to start the next hand.',
+    dcards: !S.dealer ? "Enter the dealer's upcard" : S.dc.length && !S.dbj ? "Enter the dealer's next card" : "Enter the dealer's hole card",
+    others: "Enter other players' cards in any order, then save the round",
+    await: S.hands.length>1 ? `Enter the next card for Hand ${S.active+1}` : 'Enter the card you were dealt'}[ph];
+  document.getElementById('prompt').textContent = PEND ? `Now pick the suit for the ${show(PEND)}` : pr;
+
+  let rec = '';
+  if (a){
+    const h = H(), cls = a.raw==='Ds' && a.code==='D' ? 'Ds' : a.code;
+    rec = `<div class="rec"><div class="act c-${cls}">${NAMES[a.code]}</div>
+      <div class="sub">${SUBS[a.code]}</div><div class="why">${why(a, h)}</div>
+      <div class="actions">
+        ${['H','S','D','P'].map(m => {
+          const dis = (m==='D' && !canDouble(h)) || (m==='P' && !canSplit(h));
+          return `<button class="btn ${m===a.code ? 'rec-on' : ''}" data-act="${m}" ${dis ? 'disabled' : ''}>${NAMES[m][0] + NAMES[m].slice(1).toLowerCase()}<kbd>${m}</kbd></button>`;
+        }).join('')}
+      </div>
+      ${S.dec===0 && val(S.dealer)>=10 ? '<button class="btn dbj" data-dbj>Dealer has blackjack<kbd>B · ends the round</kbd></button>' : ''}
+      ${oddsHtml(h, a)}</div>`;
+  } else if (ph==='done'){
+    rec = `<div class="rec"><div class="sub">${S.hands.map((h,i) => `${S.hands.length>1 ? `Hand ${i+1}: ` : ''}${h.result}`).join(' · ')}</div>
+      <div class="label" style="margin-top:12px">What did the dealer finish on?</div>
+      <div class="finals">${[17,18,19,20,21].map(n => `<button class="btn" data-final="${n}">${n}</button>`).join('')}
+        <button class="btn" data-final="bust">Bust</button>${S.hands.some(h => h.result==='Blackjack!') ? '<button class="btn" data-final="bj">Blackjack</button>' : ''}</div>
+      <button class="btn missed" data-final="missed">I missed it</button>
+      <div class="note">Missed rounds are saved, but left out of your win rate unless you bust. You can also just enter your next card, which saves this round as missed.</div></div>`;
+  } else if (ph==='dcards'){
+    const natural = S.hands.some(h => h.result==='Blackjack!'), allOut = S.hands.every(h => h.result==='Bust' || h.result==='Blackjack!');
+    rec = S.dbj
+      ? `<div class="rec"><div class="sub">Dealer blackjack. Enter their hole card if you saw it, so the Fairness tab gets it too.</div>
+          <button class="btn missed" data-final="bj">Didn't see it, skip</button></div>`
+      : `<div class="rec"><div class="sub">${handSummary()}</div>
+          <div class="note" style="margin-top:10px">Enter the dealer's cards as they're turned over. It stops by itself once they reach 17. Didn't catch them? Tap their total instead.</div>
+          <div class="finals">${[17,18,19,20,21].map(n => `<button class="btn" data-final="${n}">${n}</button>`).join('')}
+            <button class="btn" data-final="bust">Bust</button>${natural ? '<button class="btn" data-final="bj">Blackjack</button>' : ''}</div>
+          ${allOut ? '<button class="btn missed" data-final="none">Dealer didn\'t draw</button>' : ''}
+          <button class="btn missed" data-final="missed">I missed it</button></div>`;
+  } else if (ph==='others'){
+    rec = `<div class="rec"><div class="sub">${handSummary()} · ${dealerText(S.final)}</div>
+      <div class="note" style="margin-top:10px">${SAME ? "Same table: your friend's own log has their hand, so you can skip it. Enter anyone else's cards." : "Enter every other player's cards you can see. Skip any you missed."} ${S.oc.length} entered.</div>
+      <button class="btn save" data-lab="save">Save round<kbd>Enter</kbd></button></div>`;
+  } else if (ph==='recorded'){
+    const words = {W:'Won', P:'Push', L:'Lost', '?':'Unknown'};
+    rec = `<div class="rec"><div class="row">${S.out.map((o,i) => `<span class="chip o-${o==='?' ? 'U' : o}">${S.hands.length>1 ? `Hand ${i+1}: ` : ''}${words[o]}</span>`).join('')}</div>
+      <div class="sub" style="margin-top:8px">${dealerText(S.final)}</div></div>`;
+  }
+  document.getElementById('rec').innerHTML = rec;
+  renderStats(); renderCSV();
+  if (!document.getElementById('dash').classList.contains('hidden')) renderDash();
+  if (!document.getElementById('lab').classList.contains('hidden')) renderLab();
+
+  const ci = S.dealer ? col(S.dealer) : -1;
+  document.getElementById('odds').innerHTML = `<tr>${UP.map(u => `<th>${u}</th>`).join('')}</tr><tr>${BUST.map((b,i) => `<td class="${i===ci ? 'cur' : ''}">${b}%</td>`).join('')}</tr>`;
+  renderCharts(a ? a.refs : []);
+}
+
+const dealerText = R => R===null ? 'You bust, so the dealer\'s cards didn\'t matter.' : R==='missed' ? 'Dealer: missed' :
+  R==='bust' ? 'Dealer bust' : R==='bj' ? 'Dealer blackjack' : `Dealer finished on ${R}`;
+function summarize(rounds){
+  const outs = rounds.flatMap(r => r.out), cnt = o => outs.filter(x => x===o).length;
+  const s = {hands: outs.length, W: cnt('W'), P: cnt('P'), L: cnt('L'), U: cnt('?'), ew: 0, aw: 0, dec: 0, fol: 0, streak: ''};
+  s.known = s.W+s.P+s.L;
+  for (const r of rounds){
+    s.dec += r.dec || 0; s.fol += r.fol || 0;
+    if (r.exp && !r.out.includes('?')){ s.ew += r.exp.w*r.exp.n; s.aw += r.out.filter(o => o==='W').length; }
+  }
+  const wl = outs.filter(o => o==='W' || o==='L');
+  if (wl.length){
+    const last = wl[wl.length-1]; let n = 0;
+    for (let i=wl.length-1; i>=0 && wl[i]===last; i--) n++;
+    s.streak = `${n} ${last==='W' ? 'win' : 'loss'}${n>1 ? (last==='W' ? 's' : 'es') : ''} in a row`;
+  }
+  return s;
+}
+const rate = s => s.known ? Math.round(s.W/s.known*100)+'%' : '–';
+const tile = (n, l, c='') => `<div class="tile ${c}"><b>${n}</b><span>${l}</span></div>`;
+const chips = outs => outs.map(o => `<i class="chip o-${o==='?' ? 'U' : o}">${o}</i>`).join('');
+const handText = r => r.hands.map(c => c.map(show).join(',')).join(' / ');
+function factsHtml(s, streak=true){
+  const luck = s.aw-s.ew;
+  return `<div class="tiles">${tile(s.hands, 'Hands')}${tile(s.W, 'Won', 'cw')}${tile(s.P, 'Push', 'cp')}${tile(s.L, 'Lost', 'cl')}</div>
+    <div class="facts">
+      <div><span>Win rate</span><b>${rate(s)}</b></div>
+      ${s.ew ? `<div><span>Luck</span><b class="${luck>=0 ? 'cw' : 'cl'}">${luck>=0 ? '+' : '−'}${Math.abs(luck).toFixed(1)} wins vs expected</b></div>` : ''}
+      ${s.dec ? `<div><span>Followed advice</span><b>${Math.round(s.fol/s.dec*100)}% of moves</b></div>` : ''}
+      ${streak && s.streak ? `<div><span>Streak</span><b>${s.streak}</b></div>` : ''}
+      ${s.U ? `<div><span>Missed dealer</span><b>${s.U} hand${s.U>1 ? 's' : ''}</b></div>` : ''}
+    </div>`;
+}
+function renderStats(){
+  checkSession();
+  const rounds = LOG.filter(r => r.s===CUR.id);
+  document.getElementById('sessMeta').textContent = rounds.length
+    ? `Started ${clock(rounds[0].t || CUR.started)} · ${rounds.length} round${rounds.length>1 ? 's' : ''}`
+    : 'No rounds yet. A new session also starts after an hour without a round.';
+  document.getElementById('stats').innerHTML = !rounds.length ? '' : factsHtml(summarize(rounds)) + `
+    <div class="label" style="margin-top:12px">Recent rounds</div>
+    <div class="log">${rounds.slice(-8).reverse().map(r => `<div><span class="lh">${handText(r)}${r.up ? ` <em>vs ${show(r.up)}</em>` : ''}</span>
+      <span class="lo">${chips(r.out)}</span></div>`).join('')}</div>`;
+}
+
+// ---- Stats dashboard ----
+let selDay = null;
+const dayLabel = d => new Date(d+'T12:00').toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
+function sessionsOf(rounds){ // grouped by session; a session belongs to the day it started
+  const m = new Map();
+  for (const r of rounds){ if (!m.has(r.s)) m.set(r.s, []); m.get(r.s).push(r); }
+  return [...m.values()].map(rs => ({id: rs[0].s, rs, day: rs[0].d}));
+}
+function renderDash(){
+  const sel = document.getElementById('daySel'), sessions = sessionsOf(LOG);
+  const days = [...new Set(sessions.map(s => s.day))].sort().reverse();
+  if (!selDay || (selDay!=='all' && !days.includes(selDay))) selDay = days[0] || 'all';
+  const handsOn = d => sessions.filter(s => s.day===d).reduce((n,s) => n + s.rs.reduce((m,r) => m + r.out.length, 0), 0);
+  sel.innerHTML = `<option value="all">All days</option>` + days.map(d => `<option value="${d}">${dayLabel(d)} · ${handsOn(d)} hand${handsOn(d)===1 ? '' : 's'}</option>`).join('');
+  sel.value = selDay;
+  const body = document.getElementById('dashBody');
+  if (!LOG.length){ body.innerHTML = '<p class="note">No rounds saved yet. Finish a round on the Play tab and it shows up here.</p>'; return; }
+
+  if (selDay==='all'){
+    body.innerHTML = factsHtml(summarize(LOG), false) + `
+      <div class="label" style="margin-top:16px">By day</div>
+      <div class="scroll"><table class="cmp daytbl"><tr><th>Day</th><th>Sessions</th><th>Hands</th><th>W</th><th>P</th><th>L</th><th>Win rate</th></tr>
+      ${days.map(d => { const ss = sessions.filter(s => s.day===d), s = summarize(ss.flatMap(x => x.rs));
+        return `<tr data-day="${d}" class="click"><td>${dayLabel(d)}</td><td>${ss.length}</td><td>${s.hands}</td><td class="cw">${s.W}</td><td class="cp">${s.P}</td><td class="cl">${s.L}</td><td>${rate(s)}</td></tr>`; }).join('')}
+      </table></div>`;
+    return;
+  }
+  const ss = sessions.filter(s => s.day===selDay), rounds = ss.flatMap(s => s.rs);
+  body.innerHTML = factsHtml(summarize(rounds), false) + `
+    <div class="label" style="margin-top:16px">Sessions</div>
+    ${ss.map((x,i) => { const s = summarize(x.rs), t0 = x.rs[0].t, t1 = x.rs[x.rs.length-1].t;
+      return `<div class="sess"><div class="sesstop"><b>Session ${i+1}</b><span>${t0 ? `${clock(t0)}–${clock(t1)}` : 'Times not recorded'}</span></div>
+        <div class="sessline"><span>${s.hands} hand${s.hands===1 ? '' : 's'}</span><span class="cw">${s.W} won</span><span class="cp">${s.P} push</span><span class="cl">${s.L} lost</span><span>Win rate ${rate(s)}</span></div>
+        <div class="strip">${chips(x.rs.flatMap(r => r.out))}</div></div>`; }).join('')}
+    <div class="label" style="margin-top:16px">Every round</div>
+    <div class="scroll"><table class="cmp roundtbl"><tr><th>Time</th><th>Your cards</th><th>Dealer</th><th>Result</th></tr>
+    ${rounds.slice().reverse().map(r => `<tr><td>${r.t ? clock(r.t) : '–'}</td><td>${handText(r)}</td>
+      <td>${r.up ? show(r.up) : '?'} → ${r.dealer===null ? '–' : finalWord(r.dealer)}</td><td><span class="lo">${chips(r.out)}</span></td></tr>`).join('')}
+    </table></div>`;
+}
+
+// ---- Fairness tab: is GTA's deal fair, and how many decks does it use? ----
+let IMPORTS = [], ME_ON = true, labMsg = '';
+try { IMPORTS = JSON.parse(localStorage.getItem('bj-imports') || '[]'); } catch(e){}
+function saveImports(){ try { localStorage.setItem('bj-imports', JSON.stringify(IMPORTS)); } catch(e){ labMsg = 'Browser storage is full, so imports may not survive a reload.'; } }
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'})[c]);
+async function importFiles(files){
+  const msgs = [], mine = new Map(LOG.map(r => [r.id, JSON.stringify(r.hands)]));
+  for (const f of files){
+    const rounds = fromCSV(await f.text());
+    if (!rounds.length){ msgs.push(`${f.name} isn't a Blackjack Coach CSV.`); continue; }
+    if (rounds.filter(r => mine.get(r.id)===JSON.stringify(r.hands)).length > rounds.length*0.8){ msgs.push(`${f.name} looks like your own data, so I skipped it.`); continue; }
+    const name = rounds.find(r => r.pl)?.pl || f.name.replace(/\.csv$/i, '');
+    IMPORTS = IMPORTS.filter(x => x.name!==name); // a newer file from the same person replaces the old one
+    IMPORTS.push({id: 'i'+Date.now().toString(36)+IMPORTS.length, name, file: f.name, rounds, on: true});
+    msgs.push(`Added ${rounds.length} rounds from ${name}.`);
+  }
+  labMsg = msgs.join(' ');
+  saveImports(); renderLab();
+}
+
+// Statistics helpers
+function gammaln(x){
+  const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+  let y = x, tmp = x+5.5, ser = 1.000000000190015;
+  tmp -= (x+0.5)*Math.log(tmp);
+  for (const v of c) ser += v/++y;
+  return -tmp + Math.log(2.5066282746310005*ser/x);
+}
+function gammaQ(a, x){ // regularised upper incomplete gamma, for chi-square p-values
+  if (x<=0) return 1;
+  const lead = Math.exp(-x + a*Math.log(x) - gammaln(a));
+  if (x<a+1){
+    let ap = a, del = 1/a, sum = del;
+    for (let n=0; n<300; n++){ ap++; del *= x/ap; sum += del; if (Math.abs(del)<Math.abs(sum)*1e-12) break; }
+    return Math.max(0, 1 - sum*lead);
+  }
+  let b = x+1-a, c = 1e300, d = 1/b, h = d;
+  for (let i=1; i<300; i++){
+    const an = -i*(i-a); b += 2;
+    d = an*d + b; if (Math.abs(d)<1e-300) d = 1e-300;
+    c = b + an/c; if (Math.abs(c)<1e-300) c = 1e-300;
+    d = 1/d; const del = d*c; h *= del;
+    if (Math.abs(del-1)<1e-12) break;
+  }
+  return lead*h;
+}
+const chiTest = (obs, exp) => { const chi = obs.reduce((s,o,i) => s + (o-exp[i])**2/exp[i], 0); return {chi, p: gammaQ((obs.length-1)/2, chi/2)}; };
+function normP(z){ // two-sided p-value for a z-score
+  const t = 1/(1+0.2316419*Math.abs(z)), d = 0.3989422804*Math.exp(-z*z/2);
+  return Math.min(1, 2*d*t*(0.319381530+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429)))));
+}
+const fmtP = p => p<0.001 ? 'under 0.1%' : (p*100).toFixed(p<0.1 ? 1 : 0)+'%';
+const pct1 = x => (x*100).toFixed(1)+'%';
+const verdict = p => p<0.01 ? ['bad', 'Suspicious'] : p<0.05 ? ['warn', 'Worth watching'] : ['ok', 'Looks fair'];
+const deckName = N => N===Infinity ? 'Every card random' : `${N} deck${N>1 ? 's' : ''}`;
+
+// Cards
+const CLASSES = ['A','2','3','4','5','6','7','8','9','T'];
+const clsOf = r => { const v = val(r); return v===11 ? 'A' : v===10 ? 'T' : String(v); };
+function roundCards(r){ // every card seen in one round, as rank+suit codes
+  const out = [];
+  r.hands.forEach((c,i) => c.forEach((x,j) => out.push(x + ((r.hs && r.hs[i] && r.hs[i][j]) || ''))));
+  if (r.up) out.push(r.up + (r.us || ''));
+  return out.concat(r.dc || [], r.oc || []);
+}
+// One entry per real round at the table. Rounds two people logged at the same table are merged so each card counts once.
+function tableRounds(sets){
+  const clusters = [], open = [], shared = [];
+  for (const ds of sets) for (const r of ds.rounds){
+    if (r.same && r.t) shared.push({ds: ds.id, r});
+    else clusters.push({t: r.t, items: [{ds: ds.id, r}]});
+  }
+  shared.sort((a,b) => a.r.t - b.r.t);
+  for (const x of shared){
+    const c = open.find(c => Math.abs(c.t - x.r.t)<=120e3 && !c.items.some(y => y.ds===x.ds)
+      && c.items.every(y => !y.r.up || !x.r.up || val(y.r.up)===val(x.r.up)));
+    if (c) c.items.push(x);
+    else { const n = {t: x.r.t, items: [x]}; open.push(n); clusters.push(n); }
+  }
+  return clusters.map(c => {
+    const lists = c.items.map(x => roundCards(x.r));
+    const suited = lists.every(l => l.length && l.every(code => splitCode(code)[1]));
+    const merged = new Map(); // card -> the most copies any one person saw
+    for (const l of lists){
+      const cnt = new Map();
+      for (const code of l){ const k = suited ? code : clsOf(rankOf(code)); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      for (const [k,n] of cnt) merged.set(k, Math.max(merged.get(k) || 0, n));
+    }
+    const cards = [...merged].flatMap(([k,n]) => Array(n).fill({id: k, cls: suited ? clsOf(rankOf(k)) : k, suit: suited ? splitCode(k)[1] : ''}));
+    const src = c.items.map(x => x.r).sort((a,b) => (b.dc || []).length - (a.dc || []).length)[0]; // the most complete dealer record
+    return {t: c.t, items: c.items, cards, suited, up: src.up, final: src.dealer};
+  });
+}
+
+// Decks: exact chance of the cards in each round coming from an N-deck shoe, compared across N
+const DECKS = [1, 2, 4, 6, 8, Infinity];
+function logP(cards, suited, N, before){ // before: cards already gone from the shoe
+  const seen = new Map(before ? before.seen : []);
+  let drawn = before ? before.n : 0, ll = 0;
+  for (const c of cards){
+    const k = suited ? c.id : c.cls, copies = suited ? 1 : (c.cls==='T' ? 16 : 4);
+    if (N===Infinity) ll += Math.log(copies/52);
+    else {
+      const left = copies*N - (seen.get(k) || 0);
+      if (left<=0) return -Infinity;
+      ll += Math.log(left/(52*N - drawn));
+    }
+    seen.set(k, (seen.get(k) || 0) + 1); drawn++;
+  }
+  return ll;
+}
+const gone = (cards, suited) => { const seen = new Map(); for (const c of cards){ const k = suited ? c.id : c.cls; seen.set(k, (seen.get(k) || 0) + 1); } return {seen, n: cards.length}; };
+function deckEvidence(rounds){
+  const use = rounds.filter(r => r.cards.length>=2);
+  const ll = DECKS.map(N => use.reduce((s,r) => s + logP(r.cards, r.suited, N), 0));
+  const m = Math.max(...ll), w = ll.map(x => Math.exp(x - m)), z = w.reduce((a,b) => a+b, 0);
+  return {post: w.map(x => x/z), used: use.length, suitedUsed: use.filter(r => r.suited).length,
+    repeats: use.filter(r => r.suited && new Set(r.cards.map(c => c.id)).size < r.cards.length).length};
+}
+// Between rounds: Bayes factor for "each round is dealt from what earlier rounds left" vs "fresh shuffle every round".
+// The shoe could have been shuffled at any point, so the carry-over model averages over the last 1-10 rounds having
+// come out of the same shoe, plus a 10% chance of a shuffle right before this round.
+function carryOver(rounds, sets, N){
+  const done = new Set();
+  let lbf = 0, pairs = 0;
+  for (const ds of sets){
+    const seq = rounds.filter(r => r.t && r.items.some(x => x.ds===ds.id)).sort((a,b) => a.t - b.t);
+    for (let i=1; i<seq.length; i++){
+      const b = seq[i], prev = [];
+      for (let j=i-1; j>=0 && j>=i-10 && seq[j+1].t - seq[j].t <= 5*60e3; j--) prev.push(seq[j]);
+      if (!prev.length || done.has(b)) continue;
+      done.add(b);
+      const lvl = b.suited && prev.every(r => r.suited), fresh = logP(b.cards, lvl, N);
+      if (!isFinite(fresh)) continue;
+      let avg = 0;
+      for (let w=1; w<=prev.length; w++) avg += Math.exp(logP(b.cards, lvl, N, gone(prev.slice(0, w).flatMap(r => r.cards), lvl)) - fresh);
+      lbf += Math.log(0.9*avg/prev.length + 0.1); pairs++;
+    }
+  }
+  return {bf: Math.exp(Math.min(700, Math.max(-700, lbf))), pairs};
+}
+function luck(rounds){
+  let ew = 0, aw = 0, v = 0, hands = 0;
+  for (const r of rounds){
+    if (!r.exp || r.out.includes('?')) continue;
+    ew += r.exp.w*r.exp.n; v += r.exp.n*r.exp.w*(1-r.exp.w);
+    aw += r.out.filter(o => o==='W').length; hands += r.out.length;
+  }
+  const z = v ? (aw-ew)/Math.sqrt(v) : 0;
+  return {ew, aw, hands, p: normP(z)};
+}
+
+function renderLab(){
+  const sets = [...(ME_ON ? [{id: 'me', name: NAME || 'You', rounds: LOG}] : []), ...IMPORTS.filter(x => x.on)];
+  const labCount = rs => rs.filter(r => r.lab).length;
+  document.getElementById('labData').innerHTML =
+    `<label class="dsrow"><input type="checkbox" data-ds="me" ${ME_ON ? 'checked' : ''}><span>${esc(NAME || 'You')} (this browser)<em>${LOG.length} rounds · ${labCount(LOG)} in lab mode</em></span></label>`
+    + IMPORTS.map(x => `<label class="dsrow"><input type="checkbox" data-ds="${x.id}" ${x.on ? 'checked' : ''}><span>${esc(x.name)}<em>${x.rounds.length} rounds · ${labCount(x.rounds)} in lab mode · ${esc(x.file)}</em></span><button class="linkx" data-dsrm="${x.id}">Remove</button></label>`).join('')
+    + (labMsg ? `<p class="note">${esc(labMsg)}</p>` : '');
+
+  const body = document.getElementById('labBody'), rounds = tableRounds(sets);
+  if (!rounds.length){ body.innerHTML = '<p class="note">No rounds yet. Play some on the Play tab (turn on lab mode for the best data), or add a friend\'s CSV.</p>'; return; }
+  const merged = rounds.filter(r => r.items.length>1).length;
+
+  // Card mix
+  const all = rounds.flatMap(r => r.cards), n = all.length;
+  const obs = CLASSES.map(c => all.filter(x => x.cls===c).length), expP = CLASSES.map(c => c==='T' ? 4/13 : 1/13);
+  const cardT = n>=65 ? chiTest(obs, expP.map(p => p*n)) : null;
+  const suitedCards = rounds.filter(r => r.suited).flatMap(r => r.cards);
+  const sObs = Object.keys(SUITS).map(k => suitedCards.filter(c => c.suit===k).length);
+  const suitT = suitedCards.length>=40 ? chiTest(sObs, sObs.map(() => suitedCards.length/4)) : null;
+  // Dealer
+  const cats = [17,18,19,20,21,'bust'], dr = rounds.filter(r => r.up && cats.includes(r.final));
+  const dObs = cats.map(c => dr.filter(r => r.final===c).length), dExp = [0,0,0,0,0,0];
+  for (const r of dr) dealerDist(r.up).forEach((p,i) => dExp[i] += p);
+  const dealerT = dr.length>=30 ? chiTest(dObs, dExp) : null;
+  const bj = (label, test, p) => { const rs = rounds.filter(r => r.up && test(r.up)), k = rs.filter(r => r.final==='bj').length; return {label, k, m: rs.length, p}; };
+  const bjs = [bj('an Ace', u => u==='A', 4/13), bj('a 10-value card', u => val(u)===10, 1/13)];
+  // Decks and carry-over
+  const dk = deckEvidence(rounds), top = dk.post.indexOf(Math.max(...dk.post));
+  // largest deck count still plausible (5%+); guessing too few decks can make the carry-over test point the wrong way
+  const finite = [...DECKS].reverse().find((N,i) => N!==Infinity && dk.post[DECKS.length-1-i]>=0.05) || 8;
+  const co = carryOver(rounds, sets, finite), randomPost = dk.post[DECKS.length-1];
+
+  const cardV = cardT ? verdict(cardT.p) : ['wait', 'Need more cards'];
+  const dealerV = dealerT ? verdict(dealerT.p) : ['wait', 'Need more rounds'];
+  const deckV = dk.post[top]>=0.9 ? ['info', deckName(DECKS[top])] : dk.post[top]>=0.4 ? ['wait', `Leaning ${deckName(DECKS[top]).toLowerCase()}`] : ['wait', 'Not sure yet'];
+  const fmtBF = x => x>1000 ? 'over 1,000' : x.toFixed(x<10 ? 1 : 0);
+  let shoeV, shoeText;
+  if (randomPost>=0.9){ shoeV = ['info', 'Nothing to carry']; shoeText = 'Every card looks like a fresh random draw, so there\'s no shoe to carry over.'; }
+  else if (co.pairs<20){ shoeV = ['wait', 'Need more rounds']; shoeText = `Needs at least 20 back-to-back rounds (played within 5 minutes of each other). You have ${co.pairs}.`; }
+  else {
+    const lead = `From ${co.pairs} back-to-back rounds, assuming up to ${deckName(finite).toLowerCase()}: `;
+    if (co.bf>10){ shoeV = ['info', 'Cards carry over']; shoeText = lead + `cards seem to carry over between rounds. That's ${fmtBF(co.bf)} times more likely than a fresh shuffle each round. Card counting could work. The deck count above assumes a fresh shoe each round, so treat it as rough.`; }
+    else if (co.bf<0.1){ shoeV = ['info', 'Fresh each round']; shoeText = lead + `a fresh shuffle every round is ${fmtBF(1/co.bf)} times more likely than cards carrying over.`; }
+    else { shoeV = ['wait', 'Not clear yet']; shoeText = lead + `no clear answer yet (${co.bf>=1 ? `${fmtBF(co.bf)} to 1 for carrying over` : `${fmtBF(1/co.bf)} to 1 for a fresh shuffle`}).`; }
+  }
+  const vcard = (t, [cls, word], detail) => `<div class="verdict"><div class="vt">${t}</div><span class="pill ${cls}">${word}</span><div class="note">${detail}</div></div>`;
+  const diff = (o, e) => `${o-e>=0 ? '+' : '−'}${Math.abs(o-e).toFixed(1)}`;
+
+  body.innerHTML = `
+    <div class="verdicts">
+      ${vcard('Card mix', cardV, cardT ? `Chance a fair deal looks this uneven: ${fmtP(cardT.p)}` : `${n} cards so far. The test starts at 65.`)}
+      ${vcard('Dealer results', dealerV, dealerT ? `Chance a fair dealer looks this uneven: ${fmtP(dealerT.p)}` : `${dr.length} rounds with a dealer total. The test starts at 30.`)}
+      ${vcard('Decks in the shoe', deckV, `${pct1(dk.post[top])} likely · ${dk.used} rounds, ${dk.suitedUsed} with suits`)}
+      ${vcard('Between rounds', shoeV, co.pairs ? `${co.pairs} back-to-back rounds` : 'Needs back-to-back rounds')}
+    </div>
+    <p class="note">${rounds.length} rounds at the table${merged ? `, including ${merged} merged from same-table logs` : ''}.</p>
+
+    <div class="label sec">Card mix · ${n} cards</div>
+    <div class="scroll"><table class="cmp"><tr><th>Card</th><th>Seen</th><th>Share</th><th>Real deck</th><th>vs expected</th></tr>
+      ${CLASSES.map((c,i) => `<tr><td>${c==='T' ? '10, J, Q, K' : c==='A' ? 'Ace' : c}</td><td>${obs[i]}</td><td>${n ? pct1(obs[i]/n) : '–'}</td><td>${pct1(expP[i])}</td><td>${n ? diff(obs[i], expP[i]*n) : ''}</td></tr>`).join('')}
+    </table></div>
+    ${suitedCards.length ? `<p class="note">Suits (${suitedCards.length} cards): ${Object.values(SUITS).map((v,i) => `${v} ${sObs[i]}`).join(' · ')}${suitT ? `. Chance a fair deal looks this uneven: ${fmtP(suitT.p)}.` : ''}</p>` : ''}
+
+    <div class="label sec">Dealer's final total · ${dr.length} rounds</div>
+    <div class="scroll"><table class="cmp"><tr><th>Total</th><th>Seen</th><th>Expected</th><th>vs expected</th></tr>
+      ${cats.map((c,i) => `<tr><td>${c==='bust' ? 'Bust' : c}</td><td>${dObs[i]}</td><td>${dExp[i].toFixed(1)}</td><td>${diff(dObs[i], dExp[i])}</td></tr>`).join('')}
+    </table></div>
+    <div class="facts">
+      ${bjs.map(b => `<div><span>Dealer blackjack when showing ${b.label}</span><b>${b.k} of ${b.m}${b.m ? ` · ${pct1(b.k/b.m)} (expected ${pct1(b.p)})` : ''}</b></div>`).join('')}
+    </div>
+
+    <div class="label sec">Players vs the odds</div>
+    <div class="scroll"><table class="cmp"><tr><th>Player</th><th>Hands</th><th>Won</th><th>Expected</th><th>Luck chance</th></tr>
+      ${sets.map(ds => { const l = luck(ds.rounds); return `<tr><td>${esc(ds.name)}</td><td>${l.hands}</td><td>${l.aw}</td><td>${l.ew.toFixed(1)}</td><td>${l.hands ? fmtP(l.p) : '–'}</td></tr>`; }).join('')}
+    </table></div>
+    <p class="note">"Luck chance" is how likely it is to be at least this far from the expected number of wins by luck alone.</p>
+
+    <div class="label sec">How many decks?</div>
+    ${DECKS.map((N,i) => `<div class="post"><span>${deckName(N)}</span><div class="trk"><i style="width:${dk.post[i]*100}%"></i></div><b>${pct1(dk.post[i])}</b></div>`).join('')}
+    <p class="note">${dk.repeats ? `The exact same card turned up twice in one round ${dk.repeats} time${dk.repeats>1 ? 's' : ''}, which rules out a single deck. ` : ''}Rough guide: about 200 rounds with suits to tell 1–2 decks from many, about 500 to tell 4 decks from "every card random", and thousands to separate 6 from 8.</p>
+
+    <div class="label sec">Do cards carry over between rounds?</div>
+    <p class="note">${shoeText}</p>`;
+}
+
+const pct = x => Math.round(x*100)+'%';
+const title = m => NAMES[m][0] + NAMES[m].slice(1).toLowerCase();
+function oddsHtml(h, a){
+  const D = dealerDist(S.dealer), O = oddsFor(h, D), me = O[a.code] || O.S, t = info(h.cards).total;
+  const maxD = Math.max(...D);
+  const tone = (n,i) => i===5 ? 'w' : n>t ? 'l' : n===t ? 'p' : 'w';
+  return `<div class="oddsbox">
+    <div class="label">If you ${NAMES[a.code].toLowerCase()}${a.code==='P' ? ' (odds for each hand)' : ''}</div>
+    <div class="bar"><i class="w" style="width:${me.w*100}%"></i><i class="p" style="width:${me.p*100}%"></i><i class="l" style="width:${me.l*100}%"></i></div>
+    <div class="wpl"><span class="cw">You win ${pct(me.w)}</span><span class="cp">Push ${pct(me.p)}</span><span class="cl">Dealer wins ${pct(me.l)}</span></div>
+    <div class="scroll"><table class="cmp">
+      <tr><th>Move</th><th>You win</th><th>Push</th><th>Dealer wins</th></tr>
+      ${['H','S','D','P'].filter(m => O[m]).map(m => `<tr class="${m===a.code ? 'me' : ''}"><td>${title(m)}</td><td>${pct(O[m].w)}</td><td>${pct(O[m].p)}</td><td>${pct(O[m].l)}</td></tr>`).join('')}
+    </table></div>
+    <div class="label" style="margin-top:14px">Where the dealer finishes with ${show(S.dealer)} showing</div>
+    <div class="dd">${['17','18','19','20','21','Bust'].map((n,i) => `<div><div class="ddbar"><i class="${tone(+n,i)}" style="height:${D[i]/maxD*100}%"></i></div><b>${pct(D[i])}</b><span>${n}</span></div>`).join('')}</div>
+    <div class="note">Green beats your ${t} if you stand now, grey ties it, red beats you. Assumes the dealer has already checked for blackjack, and that after a hit you keep playing the best way.</div>
+  </div>`;
+}
+
+function table(title, data, rowLabel, key, refs){
+  const rows = Object.keys(data).map(Number).sort((a,b) => b-a);
+  return `<div class="panel"><div class="label">${title}</div><table class="chart">
+    <tr><th></th>${UP.map(u => `<th>${u}</th>`).join('')}</tr>
+    ${rows.map(r => {
+      const hitRow = refs.some(x => x.t===key && x.r===r);
+      return `<tr class="${hitRow ? 'hlrow' : ''}"><th>${rowLabel(r)}</th>${[...data[r]].map((v,c) => {
+        const code = v==='d' ? 'Ds' : v;
+        const hl = refs.some(x => x.t===key && x.r===r && x.c===c);
+        return `<td class="v-${code} ${hl ? 'hl' : ''}">${code}</td>`;
+      }).join('')}</tr>`;
+    }).join('')}</table></div>`;
+}
+function renderCharts(refs){
+  const pl = v => v===11 ? 'A,A' : v===10 ? 'T,T' : `${v},${v}`;
+  document.getElementById('charts').innerHTML =
+    table('Pair splitting', PAIRS, pl, 'pairs', refs) +
+    table('Soft totals', SOFT, t => `A,${t-11}`, 'soft', refs) +
+    table('Hard totals', HARD, t => t===17 ? '17+' : t===8 ? '≤8' : t, 'hard', refs);
+}
+
+document.addEventListener('click', e => {
+  const k = e.target.closest('[data-card]');
+  if (k){ if (LAB){ PEND = k.dataset.card; return render(); } return onCard(k.dataset.card); } // lab: wait for the suit
+  const su = e.target.closest('[data-suit]'); if (su){ if (PEND) onCard(PEND, su.dataset.suit); return; }
+  if (e.target.closest('[data-lab="save"]')) return saveLabRound();
+  const rm = e.target.closest('[data-dsrm]'); if (rm){ IMPORTS = IMPORTS.filter(x => x.id!==rm.dataset.dsrm); saveImports(); return renderLab(); }
+  if (e.target.closest('#importBtn')) return document.getElementById('importIn').click();
+  const b = e.target.closest('[data-act]'); if (b) return act(b.dataset.act);
+  const f = e.target.closest('[data-final]'); if (f){ const v = f.dataset.final; return finish(v==='none' ? null : /^\d+$/.test(v) ? +v : v); }
+  if (e.target.closest('[data-dbj]')) return dealerBlackjack();
+  const c = e.target.closest('[data-csv]');
+  if (c){ const k = c.dataset.csv; return k==='export' ? exportCSV(c) : k==='re' ? reconnect() : connect(k); }
+  if (e.target.closest('#newSession')){ newSession(); render(); return; }
+  const d = e.target.closest('[data-day]'); if (d){ selDay = d.dataset.day; return renderDash(); }
+  const t = e.target.closest('[data-tab]');
+  if (t){
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
+    for (const id of ['play','dash','lab','chart']) document.getElementById(id).classList.toggle('hidden', t.dataset.tab!==id);
+    if (t.dataset.tab==='dash') renderDash();
+    if (t.dataset.tab==='lab') renderLab();
+  }
+});
+document.addEventListener('change', e => {
+  const ds = e.target.closest('[data-ds]');
+  if (!ds) return;
+  if (ds.dataset.ds==='me') ME_ON = ds.checked;
+  else { const x = IMPORTS.find(x => x.id===ds.dataset.ds); if (x){ x.on = ds.checked; saveImports(); } }
+  renderLab();
+});
+const labTog = document.getElementById('labTog'), sameTog = document.getElementById('sameTog');
+labTog.checked = LAB; sameTog.checked = SAME;
+labTog.onchange = () => {
+  LAB = labTog.checked; setPref('bj-lab', LAB ? '1' : '0'); PEND = null;
+  if (S.phase==='player' && !H().cards.length) S.lab = LAB; // otherwise it applies from the next round
+  labTog.blur(); render();
+};
+sameTog.onchange = () => { SAME = sameTog.checked; setPref('bj-same', SAME ? '1' : '0'); sameTog.blur(); render(); };
+const nameIn = document.getElementById('nameIn');
+nameIn.value = NAME;
+nameIn.onchange = () => { NAME = nameIn.value.trim(); setPref('bj-name', NAME); writeCSV(); renderLab(); };
+document.getElementById('importIn').onchange = e => { importFiles([...e.target.files]); e.target.value = ''; };
+document.getElementById('daySel').onchange = e => { selDay = e.target.value; renderDash(); };
+document.getElementById('undo').onclick = undo;
+document.getElementById('reset').onclick = reset;
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (document.getElementById('play').classList.contains('hidden') || e.target.closest?.('select, input[type=text], textarea')) return;
+  const k = e.key.toUpperCase();
+  const card = /^[2-9]$/.test(k) ? k : (k==='0' || k==='T') ? '10' : (k==='1' || k==='A') ? 'A' : ['J','Q','K'].includes(k) ? k : null;
+  if (LAB && PEND){ // waiting for a suit
+    if (['S','H','D','C'].includes(k)) onCard(PEND, k.toLowerCase());
+    else if (k==='X') onCard(PEND, '');
+    else if (k==='BACKSPACE' || k==='ESCAPE'){ e.preventDefault(); PEND = null; render(); }
+    else if (card){ PEND = card; render(); }
+    return;
+  }
+  if (card){ if (LAB){ PEND = card; render(); } else onCard(card); }
+  else if (k==='ENTER' && S.phase==='others') saveLabRound();
+  else if (['H','S','D','P'].includes(k)) act(k);
+  else if (k==='B' && S.phase==='decide' && S.dec===0 && val(S.dealer)>=10) dealerBlackjack();
+  else if (k==='BACKSPACE'){ e.preventDefault(); undo(); }
+  else if (k==='N' || k==='ESCAPE') reset();
+});
+checkSession();
+persist();
+render();
+restoreFile();
+</script>
+</body>
+</html>
