@@ -174,6 +174,7 @@ input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1p
 #tagBox .seg{margin-top:6px}
 .claims td em{display:block;font-style:normal;color:var(--muted);font-size:11px}
 .claims td:first-child{white-space:nowrap}
+.note.tie{color:var(--text);margin-top:10px}
 .sigwarn{color:var(--stand);font-weight:800} .sigbad{color:var(--bad);font-weight:800}
 </style>
 </head>
@@ -740,6 +741,12 @@ function reset(){ PEND = null; save(); fresh(); render(); }
 const red = suit => suit==='h' || suit==='d';
 const cardEl = (r, cls='', suit='') => `<div class="card ${cls} ${red(suit) ? 'red' : ''}">${r ? show(r) : ''}${suit ? `<small>${SUITS[suit]}</small>` : ''}</div>`;
 const cardCode = (code, cls='') => { const [r, s] = splitCode(code); return cardEl(r, cls, s); };
+// A 21 made with 3+ cards isn't a blackjack, so the dealer can still tie it
+function tieNote(){
+  if (!S.dealer || !S.hands.some(h => !['Bust', 'Blackjack!', 'Dealer blackjack'].includes(h.result) && info(h.cards).total===21)) return '';
+  const up = S.dealer==='A' ? 'an Ace' : `a ${show(S.dealer)}`;
+  return `<div class="note tie">${S.hands.length>1 ? 'A hand on 21' : 'Your 21'} isn't a blackjack, so the dealer still plays. You win unless they also make 21, which is a push. That happens about ${Math.round(dealerDist(S.dealer)[4]*100)}% of the time with ${up} showing.</div>`;
+}
 const handSummary = () => S.hands.map((h,i) => `${S.hands.length>1 ? `Hand ${i+1}: ` : ''}${h.result}`).join(' · ');
 function renderPad(){
   document.getElementById('pad').innerHTML = PAD.map(r => `<button class="key ${PEND===r ? 'pend' : ''}" data-card="${r}">${show(r)}</button>`).join('');
@@ -786,7 +793,7 @@ function render(){
 
   const pr = {dealer:"Now enter the dealer's upcard",
     player: H().cards.length ? 'Enter your second card' : 'Enter your first card',
-    decide: '', done: 'Round over. Tap what the dealer finished on.',
+    decide: '', done: "Your turn's done. Now the dealer plays: tap what they finished on.",
     recorded: 'Saved. Enter your first card to start the next hand.',
     dcards: !S.dealer ? "Enter the dealer's upcard" : S.dc.length && !S.dbj ? "Enter the dealer's next card" : "Enter the dealer's hole card",
     others: "Enter other players' cards in any order, then save the round",
@@ -808,6 +815,7 @@ function render(){
       ${oddsHtml(h, a)}</div>`;
   } else if (ph==='done'){
     rec = `<div class="rec"><div class="sub">${S.hands.map((h,i) => `${S.hands.length>1 ? `Hand ${i+1}: ` : ''}${h.result}`).join(' · ')}</div>
+      ${tieNote()}
       <div class="label" style="margin-top:12px">What did the dealer finish on?</div>
       <div class="finals">${[17,18,19,20,21].map(n => `<button class="btn" data-final="${n}">${n}</button>`).join('')}
         <button class="btn" data-final="bust">Bust</button>${S.hands.some(h => h.result==='Blackjack!') ? '<button class="btn" data-final="bj">Blackjack</button>' : ''}</div>
@@ -818,7 +826,7 @@ function render(){
     rec = S.dbj
       ? `<div class="rec"><div class="sub">Dealer blackjack. Enter their hole card if you saw it, so the Fairness tab gets it too.</div>
           <button class="btn missed" data-final="bj">Didn't see it, skip</button></div>`
-      : `<div class="rec"><div class="sub">${handSummary()}</div>
+      : `<div class="rec"><div class="sub">${handSummary()}</div>${tieNote()}
           <div class="note" style="margin-top:10px">Enter the dealer's cards as they're turned over. It stops by itself once they reach 17. Didn't catch them? Tap their total instead.</div>
           <div class="finals">${[17,18,19,20,21].map(n => `<button class="btn" data-final="${n}">${n}</button>`).join('')}
             <button class="btn" data-final="bust">Bust</button>${natural ? '<button class="btn" data-final="bj">Blackjack</button>' : ''}</div>
