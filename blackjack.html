@@ -795,7 +795,8 @@ function render(){
     player: H().cards.length ? 'Enter your second card' : 'Enter your first card',
     decide: '', done: "Your turn's done. Now the dealer plays: tap what they finished on.",
     recorded: 'Saved. Enter your first card to start the next hand.',
-    dcards: !S.dealer ? "Enter the dealer's upcard" : S.dc.length && !S.dbj ? "Enter the dealer's next card" : "Enter the dealer's hole card",
+    dcards: !S.dealer ? "Enter the dealer's upcard" : S.dc.length && !S.dbj ? "Enter the dealer's next card"
+      : `Enter the dealer's hole card (their ${show(S.dealer)} is already in)`,
     others: "Enter other players' cards in any order, then save the round",
     await: S.hands.length>1 ? `Enter the next card for Hand ${S.active+1}` : 'Enter the card you were dealt'}[ph];
   document.getElementById('prompt').textContent = PEND ? `Now pick the suit for the ${show(PEND)}` : pr;
