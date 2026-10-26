@@ -42,17 +42,21 @@ If the dealer shows a 10 or an Ace and turns over blackjack before you move, pre
 
 A new session starts automatically after an hour without a round, or whenever you press **New session**.
 
+### Bet size and table
+
+On the Play tab, set your **bet** ($50k max, $10k+ or under $10k) and **table** (main floor, high-limit or Penthouse). Both stay set until you change them and are saved with every round, so the Fairness tab can check claims that the game deals worse cards on big bets. If you have rounds from before this existed, the Fairness tab offers to tag them all with one bet size.
+
 ## Saving your data to a CSV
 
 Under **CSV file**, click **New CSV file** and save it somewhere like Documents. From then on, every round is written to that file the moment it finishes. If Chrome asks about access, choose **Allow on every visit** so it reconnects by itself next time. If it asks again later, click **Reconnect**. Rounds played in the meantime are kept in the browser and written when you reconnect.
 
 - **Open existing CSV** connects a file you already have and brings back any rounds the browser is missing.
 - **Download CSV** saves a one-off copy.
-- The CSV has one row per hand. Cards are written like `Kh` (K♥) when suits are recorded.
+- The CSV has one row per hand, including your bet size and table. Cards are written like `Kh` (K♥) when suits are recorded.
 
 ## The fairness experiment
 
-Nobody seems to have tested how GTA deals its blackjack cards. This page can. The **Fairness** tab answers four questions:
+Nobody seems to have tested how GTA deals its blackjack cards. This page can. The **Fairness** tab answers six questions:
 
 | Question | How it's tested |
 |---|---|
@@ -60,6 +64,10 @@ Nobody seems to have tested how GTA deals its blackjack cards. This page can. Th
 | **Is the dealer fair?** | Compares how often the dealer finished on each total, and how often they had blackjack, with the exact math for the upcards they showed. |
 | **How many decks?** | Within one round, every card comes out of the same shoe. With one deck you can never see the same exact card twice in a round. With more decks it gets a little more likely, and most likely if every card is drawn at random. It works out which of 1, 2, 4, 6, 8 decks or "every card random" best explains what you've seen. |
 | **Do cards carry over between rounds?** | If GTA keeps dealing from the same shoe, cards from earlier rounds are missing from the next one, which would mean card counting could work. It compares that with a fresh shuffle every round. |
+| **Is the dealer's upcard fair?** | How often the dealer shows a 10, J, Q or K, against 30.8% in a real deck. |
+| **Do you get your share of blackjacks?** | How often your first two cards are a blackjack, against 4.7%. GTA ends the round instantly when you get one, so log those hands too or this reads low. |
+
+**Compare by bet size or table.** A table on the Fairness tab splits the main checks (dealer upcards, dealer busts, dealer 19–21, dealer blackjacks, your blackjacks and hands won) by bet size or by table, each next to what the maths expects for those exact rounds. Anything a fair game would rarely produce is highlighted. The **Bet size** and **Table** filters narrow every test to just those rounds.
 
 Each test gives a plain verdict: **Looks fair**, **Worth watching** or **Suspicious**, and for the deck tests the most likely answer. The percentages are the chance that a fair game would look at least this uneven by luck alone. Under 5% is worth watching; under 1% is suspicious.
 

@@ -162,6 +162,19 @@ input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1p
 .linkx{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline}
 .methods p{font-size:12px;color:var(--muted);margin:0 0 8px}
 .methods b{color:var(--text)}
+.setrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.setrow .label{margin:0;width:42px;flex:none}
+.seg{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.seg button{flex:1;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 6px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.seg button.on{color:var(--text);border-color:var(--dbl);background:#1f3b2f}
+#betHint{margin:0 0 14px}
+#betHint:empty{display:none}
+.filters{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center;margin:12px 0 4px}
+.filters .label{margin:0}
+#tagBox .seg{margin-top:6px}
+.claims td em{display:block;font-style:normal;color:var(--muted);font-size:11px}
+.claims td:first-child{white-space:nowrap}
+.sigwarn{color:var(--stand);font-weight:800} .sigbad{color:var(--bad);font-weight:800}
 </style>
 </head>
 <body>
@@ -194,6 +207,9 @@ input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1p
         <label class="tog"><input type="checkbox" id="labTog"><span><b>Lab mode</b><em>Also record suits, the dealer's cards and other players' cards, for the Fairness tab</em></span></label>
         <label class="tog"><input type="checkbox" id="sameTog"><span><b>Same table as a friend</b><em>Your logs get merged on the Fairness tab so shared cards are only counted once</em></span></label>
       </div>
+      <div class="setrow"><span class="label">Bet</span><div class="seg" id="betSeg"></div></div>
+      <div class="setrow"><span class="label">Table</span><div class="seg" id="tblSeg"></div></div>
+      <p class="note" id="betHint"></p>
       <div class="label">Tap the card (or use the keyboard)</div>
       <div class="pad" id="pad"></div>
       <div class="suits hidden" id="suits"></div>
@@ -231,6 +247,11 @@ input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1p
     <div class="panel">
       <div class="label">Data</div>
       <div id="labData"></div>
+      <div class="filters">
+        <label class="label" for="fBet">Bet size</label><select id="fBet"></select>
+        <label class="label" for="fTbl">Table</label><select id="fTbl"></select>
+      </div>
+      <div id="tagBox"></div>
       <input type="file" id="importIn" accept=".csv,text/csv" multiple hidden>
       <button class="btn sm wide" id="importBtn">Add a friend's CSV</button>
       <label class="label" for="nameIn" style="display:block;margin-top:18px">Your name (written into your CSV)</label>
@@ -347,7 +368,13 @@ const SUITS = {s:'♠', h:'♥', d:'♦', c:'♣'};
 const splitCode = c => /[shdc]$/.test(c) ? [c.slice(0,-1), c.slice(-1)] : [c, ''];
 const rankOf = c => splitCode(c)[0];
 let LAB = false, SAME = false, NAME = '', PEND = null; // PEND: rank waiting for its suit
-try { LAB = localStorage.getItem('bj-lab')==='1'; SAME = localStorage.getItem('bj-same')==='1'; NAME = localStorage.getItem('bj-name') || ''; } catch(e){}
+// Bet size and table are saved with every round, so the Fairness tab can check whether big bets get dealt worse cards
+const BETS = {max: '$50k max', mid: '$10k+', low: 'Under $10k'}, TABLES = {floor: 'Main floor', high: 'High-limit', pent: 'Penthouse'};
+let BET = '', TBL = '';
+try {
+  LAB = localStorage.getItem('bj-lab')==='1'; SAME = localStorage.getItem('bj-same')==='1'; NAME = localStorage.getItem('bj-name') || '';
+  BET = localStorage.getItem('bj-bet') || ''; TBL = localStorage.getItem('bj-tbl') || '';
+} catch(e){}
 const setPref = (k,v) => { try { localStorage.setItem(k, v); } catch(e){} };
 
 const newHand = (cards=[], fromSplit=false, suits=[]) => ({cards, suits, fromSplit, splitAces:fromSplit && cards[0]==='A', doubled:false, done:false, result:null});
@@ -469,6 +496,8 @@ function recordRound(R){
   const entry = {id: 'r'+now, t: now, d: dayOf(now), s: CUR.id, hands: S.hands.map(h => h.cards), dbl: S.hands.map(h => h.doubled),
     up: S.dealer, dealer: R, out: S.out, exp: S.exp, dec: S.dec, fol: S.fol};
   if (SAME) entry.same = 1;
+  if (BET) entry.bet = BET;
+  if (TBL) entry.tbl = TBL;
   if (S.lab) Object.assign(entry, {lab: 1, hs: S.hands.map(h => [...(h.suits || [])]), us: S.upSuit || '', dc: [...S.dc], oc: [...S.oc]});
   LOG.push(entry);
   persist();
@@ -492,7 +521,8 @@ function saveLabRound(){ if (S.phase!=='others') return; save(); recordRound(S.f
 
 // ---- CSV ----
 const COLS = ['round_id','timestamp','date','session','player','hand','player_cards','player_total','doubled','dealer_upcard','dealer_cards','dealer_final',
-  'other_cards','result','moves','followed_advice','win_chance','lab','same_table'];
+  'other_cards','result','moves','followed_advice','win_chance','lab','same_table','bet','table'];
+const keyOf = (map, label) => Object.keys(map).find(k => map[k]===label);
 const RES = {W:'Won', L:'Lost', P:'Push', '?':'Unknown'}, RES_BACK = {Won:'W', Lost:'L', Push:'P', Unknown:'?'};
 const finalWord = R => R===null ? 'n/a' : R==='bust' ? 'Bust' : R==='bj' ? 'Blackjack' : R==='missed' ? 'Missed' : String(R);
 const finalBack = w => w==='n/a' ? null : w==='Bust' ? 'bust' : w==='Blackjack' ? 'bj' : w==='Missed' ? 'missed' : +w;
@@ -503,7 +533,7 @@ function toCSV(){
   for (const r of LOG) r.hands.forEach((c,i) => rows.push([r.id, stamp(r.t), r.d, r.s, NAME, i+1,
     c.map((x,j) => x + ((r.hs && r.hs[i] && r.hs[i][j]) || '')).join(' '), info(c).total, r.dbl ? (r.dbl[i] ? 'yes' : 'no') : '',
     r.up ? r.up + (r.us || '') : '', (r.dc || []).join(' '), finalWord(r.dealer), (r.oc || []).join(' '),
-    RES[r.out[i]], r.dec ?? '', r.fol ?? '', r.exp ? r.exp.w.toFixed(3) : '', r.lab ? 'yes' : '', r.same ? 'yes' : '']));
+    RES[r.out[i]], r.dec ?? '', r.fol ?? '', r.exp ? r.exp.w.toFixed(3) : '', r.lab ? 'yes' : '', r.same ? 'yes' : '', BETS[r.bet] || '', TABLES[r.tbl] || '']));
   return rows.map(row => row.map(q).join(',')).join('\n') + '\n';
 }
 function parseCSV(text){
@@ -536,6 +566,9 @@ function fromCSV(text){ // one row per hand -> one entry per round
         dec: +get(row,'moves') || 0, fol: +get(row,'followed_advice') || 0, exp: w!=='' ? {w:+w, n:0} : null};
       if (get(row,'lab')==='yes') r.lab = 1;
       if (get(row,'same_table')==='yes') r.same = 1;
+      const bet = keyOf(BETS, get(row,'bet')), tbl = keyOf(TABLES, get(row,'table'));
+      if (bet) r.bet = bet;
+      if (tbl) r.tbl = tbl;
       byId.set(id, r);
     }
     const codes = get(row,'player_cards').split(' ').filter(Boolean).map(splitCode);
@@ -801,7 +834,7 @@ function render(){
       <div class="sub" style="margin-top:8px">${dealerText(S.final)}</div></div>`;
   }
   document.getElementById('rec').innerHTML = rec;
-  renderStats(); renderCSV();
+  renderStats(); renderCSV(); renderSettings();
   if (!document.getElementById('dash').classList.contains('hidden')) renderDash();
   if (!document.getElementById('lab').classList.contains('hidden')) renderLab();
 
@@ -1047,9 +1080,53 @@ function luck(rounds){
   const z = v ? (aw-ew)/Math.sqrt(v) : 0;
   return {ew, aw, hands, p: normP(z)};
 }
+const NAT_P = 2*(1/13)*(4/13); // chance your first two cards are a blackjack: 4.7%
+const isNatural = r => r.hands.length===1 && r.hands[0].length===2 && info(r.hands[0]).total===21;
+function binomP(k, n, p){ // exact two-sided binomial p-value, for small counts like blackjacks
+  if (!n) return 1;
+  let lo = 0, hi = 0;
+  for (let i=0; i<=n; i++){
+    const pr = Math.exp(gammaln(n+1) - gammaln(i+1) - gammaln(n-i+1) + i*Math.log(p) + (n-i)*Math.log(1-p));
+    if (i<=k) lo += pr;
+    if (i>=k) hi += pr;
+  }
+  return Math.min(1, 2*Math.min(lo, hi));
+}
+// The things people claim are rigged, each against the exact expected value for the same rounds
+function claims(gs){
+  const tr = tableRounds(gs), ups = tr.filter(r => r.up), dr = ups.filter(r => [17,18,19,20,21,'bust'].includes(r.final));
+  const stat = (rs, prob, hit) => {
+    let e = 0, v = 0, o = 0;
+    for (const r of rs){ const p = prob(r); e += p; v += p*(1-p); if (hit(r)) o++; }
+    return {o, n: rs.length, e, p: v>0 ? normP((o-e)/Math.sqrt(v)) : 1};
+  };
+  const prs = gs.flatMap(d => d.rounds), nat = prs.filter(isNatural).length, l = luck(prs);
+  return {
+    rounds: tr.length,
+    tens: stat(ups, () => 4/13, r => val(r.up)===10),
+    bust: stat(dr, r => dealerDist(r.up)[5], r => r.final==='bust'),
+    high: stat(dr, r => { const d = dealerDist(r.up); return d[2]+d[3]+d[4]; }, r => [19,20,21].includes(r.final)),
+    dbj: stat(ups, r => r.up==='A' ? 4/13 : val(r.up)===10 ? 1/13 : 0, r => r.final==='bj'),
+    nat: {o: nat, n: prs.length, e: prs.length*NAT_P, p: binomP(nat, prs.length, NAT_P)},
+    win: {o: l.aw, n: l.hands, e: l.ew, p: l.p}
+  };
+}
+let FBET = 'all', FTBL = 'all', SPLIT = 'bet', tagArmed = null;
 
 function renderLab(){
-  const sets = [...(ME_ON ? [{id: 'me', name: NAME || 'You', rounds: LOG}] : []), ...IMPORTS.filter(x => x.on)];
+  const base = [...(ME_ON ? [{id: 'me', name: NAME || 'You', rounds: LOG}] : []), ...IMPORTS.filter(x => x.on)];
+  const pass = r => (FBET==='all' || (r.bet || 'none')===FBET) && (FTBL==='all' || (r.tbl || 'none')===FTBL);
+  const sets = base.map(ds => ({...ds, rounds: ds.rounds.filter(pass)}));
+  const count = (field, k) => base.reduce((a,d) => a + d.rounds.filter(r => (r[field] || 'none')===k).length, 0);
+  const opts = (map, field) => `<option value="all">All</option>` + [...Object.entries(map), ['none', 'Not set']]
+    .map(([k,l]) => `<option value="${k}">${l} (${count(field, k)})</option>`).join('');
+  const fBet = document.getElementById('fBet'), fTbl = document.getElementById('fTbl');
+  fBet.innerHTML = opts(BETS, 'bet'); fBet.value = FBET;
+  fTbl.innerHTML = opts(TABLES, 'tbl'); fTbl.value = FTBL;
+  const untagged = LOG.filter(r => !r.bet).length;
+  document.getElementById('tagBox').innerHTML = !untagged ? '' :
+    `<p class="note">${untagged} of your rounds have no bet size. If you know what you bet, tag them all:</p>
+     <div class="seg">${Object.entries(BETS).map(([k,l]) => `<button class="${tagArmed===k ? 'on' : ''}" data-tagbet="${k}">${tagArmed===k ? `Tap again: tag ${untagged} as ${l}` : l}</button>`).join('')}</div>`;
   const labCount = rs => rs.filter(r => r.lab).length;
   document.getElementById('labData').innerHTML =
     `<label class="dsrow"><input type="checkbox" data-ds="me" ${ME_ON ? 'checked' : ''}><span>${esc(NAME || 'You')} (this browser)<em>${LOG.length} rounds · ${labCount(LOG)} in lab mode</em></span></label>`
@@ -1057,7 +1134,8 @@ function renderLab(){
     + (labMsg ? `<p class="note">${esc(labMsg)}</p>` : '');
 
   const body = document.getElementById('labBody'), rounds = tableRounds(sets);
-  if (!rounds.length){ body.innerHTML = '<p class="note">No rounds yet. Play some on the Play tab (turn on lab mode for the best data), or add a friend\'s CSV.</p>'; return; }
+  if (!rounds.length){ body.innerHTML = base.some(d => d.rounds.length) ? '<p class="note">No rounds match these filters.</p>'
+    : '<p class="note">No rounds yet. Play some on the Play tab (turn on lab mode for the best data), or add a friend\'s CSV.</p>'; return; }
   const merged = rounds.filter(r => r.items.length>1).length;
 
   // Card mix
@@ -1093,17 +1171,35 @@ function renderLab(){
     else if (co.bf<0.1){ shoeV = ['info', 'Fresh each round']; shoeText = lead + `a fresh shuffle every round is ${fmtBF(1/co.bf)} times more likely than cards carrying over.`; }
     else { shoeV = ['wait', 'Not clear yet']; shoeText = lead + `no clear answer yet (${co.bf>=1 ? `${fmtBF(co.bf)} to 1 for carrying over` : `${fmtBF(1/co.bf)} to 1 for a fresh shuffle`}).`; }
   }
+  const cl = claims(sets);
+  const upV = cl.tens.n>=30 ? verdict(cl.tens.p) : ['wait', 'Need more rounds'];
+  const natV = cl.nat.n>=50 ? verdict(cl.nat.p) : ['wait', 'Need more rounds'];
+  const field = SPLIT==='bet' ? 'bet' : 'tbl', labels = SPLIT==='bet' ? BETS : TABLES;
+  const groups = [...Object.keys(labels), 'none'].map(g => {
+    const gs = sets.map(ds => ({...ds, rounds: ds.rounds.filter(r => (r[field] || 'none')===g)}));
+    return gs.some(d => d.rounds.length) ? {name: labels[g] || 'Not set', m: claims(gs)} : null;
+  }).filter(Boolean);
+  const cell = x => x.n ? `<span class="${x.p<0.01 ? 'sigbad' : x.p<0.05 ? 'sigwarn' : ''}">${pct(x.o/x.n)}</span><em>${pct(x.e/x.n)}</em>` : '–';
   const vcard = (t, [cls, word], detail) => `<div class="verdict"><div class="vt">${t}</div><span class="pill ${cls}">${word}</span><div class="note">${detail}</div></div>`;
   const diff = (o, e) => `${o-e>=0 ? '+' : '−'}${Math.abs(o-e).toFixed(1)}`;
 
   body.innerHTML = `
     <div class="verdicts">
       ${vcard('Card mix', cardV, cardT ? `Chance a fair deal looks this uneven: ${fmtP(cardT.p)}` : `${n} cards so far. The test starts at 65.`)}
+      ${vcard('Dealer upcards', upV, cl.tens.n ? `${pct1(cl.tens.o/cl.tens.n)} were 10, J, Q or K (a real deck: 30.8%)${cl.tens.n>=30 ? ` · chance: ${fmtP(cl.tens.p)}` : ''}` : 'No upcards yet')}
       ${vcard('Dealer results', dealerV, dealerT ? `Chance a fair dealer looks this uneven: ${fmtP(dealerT.p)}` : `${dr.length} rounds with a dealer total. The test starts at 30.`)}
+      ${vcard('Your blackjacks', natV, `${cl.nat.o} in ${cl.nat.n} rounds, expected about ${cl.nat.e.toFixed(1)}${cl.nat.n>=50 ? ` · chance: ${fmtP(cl.nat.p)}` : ''}. GTA ends the round instantly on a blackjack, so log those too.`)}
       ${vcard('Decks in the shoe', deckV, `${pct1(dk.post[top])} likely · ${dk.used} rounds, ${dk.suitedUsed} with suits`)}
       ${vcard('Between rounds', shoeV, co.pairs ? `${co.pairs} back-to-back rounds` : 'Needs back-to-back rounds')}
     </div>
     <p class="note">${rounds.length} rounds at the table${merged ? `, including ${merged} merged from same-table logs` : ''}.</p>
+
+    <div class="label sec">Compare by</div>
+    <div class="seg" style="margin-bottom:6px"><button class="${SPLIT==='bet' ? 'on' : ''}" data-split="bet">Bet size</button><button class="${SPLIT==='tbl' ? 'on' : ''}" data-split="tbl">Table</button></div>
+    <div class="scroll"><table class="cmp claims"><tr><th></th><th>Rounds</th><th>10-value upcard</th><th>Dealer busts</th><th>Dealer 19–21</th><th>Dealer blackjack</th><th>Your blackjacks</th><th>Hands won</th></tr>
+      ${groups.map(g => `<tr><td>${g.name}</td><td>${g.m.rounds}</td><td>${cell(g.m.tens)}</td><td>${cell(g.m.bust)}</td><td>${cell(g.m.high)}</td><td>${cell(g.m.dbj)}</td><td>${cell(g.m.nat)}</td><td>${cell(g.m.win)}</td></tr>`).join('')}
+    </table></div>
+    <p class="note">Each cell shows what happened, with what the maths expects for those exact rounds underneath. Yellow means a fair game would be this far off less than 5% of the time, red less than 1%. "Dealer 19–21" counts rounds the dealer played out, so dealer blackjacks are separate.</p>
 
     <div class="label sec">Card mix · ${n} cards</div>
     <div class="scroll"><table class="cmp"><tr><th>Card</th><th>Seen</th><th>Share</th><th>Real deck</th><th>vs expected</th></tr>
@@ -1134,6 +1230,12 @@ function renderLab(){
 }
 
 const pct = x => Math.round(x*100)+'%';
+function renderSettings(){
+  const seg = (map, cur, attr) => Object.entries(map).map(([k,l]) => `<button class="${cur===k ? 'on' : ''}" data-${attr}="${k}">${l}</button>`).join('');
+  document.getElementById('betSeg').innerHTML = seg(BETS, BET, 'bet');
+  document.getElementById('tblSeg').innerHTML = seg(TABLES, TBL, 'tbl');
+  document.getElementById('betHint').textContent = BET && TBL ? '' : 'Set your bet and table so the Fairness tab can check whether bigger bets get dealt worse cards.';
+}
 const title = m => NAMES[m][0] + NAMES[m].slice(1).toLowerCase();
 function oddsHtml(h, a){
   const D = dealerDist(S.dealer), O = oddsFor(h, D), me = O[a.code] || O.S, t = info(h.cards).total;
@@ -1179,6 +1281,15 @@ document.addEventListener('click', e => {
   if (k){ if (LAB){ PEND = k.dataset.card; return render(); } return onCard(k.dataset.card); } // lab: wait for the suit
   const su = e.target.closest('[data-suit]'); if (su){ if (PEND) onCard(PEND, su.dataset.suit); return; }
   if (e.target.closest('[data-lab="save"]')) return saveLabRound();
+  const bt = e.target.closest('[data-bet]'); if (bt){ BET = BET===bt.dataset.bet ? '' : bt.dataset.bet; setPref('bj-bet', BET); return renderSettings(); }
+  const tb = e.target.closest('[data-tbl]'); if (tb){ TBL = TBL===tb.dataset.tbl ? '' : tb.dataset.tbl; setPref('bj-tbl', TBL); return renderSettings(); }
+  const sp = e.target.closest('[data-split]'); if (sp){ SPLIT = sp.dataset.split; return renderLab(); }
+  const tg = e.target.closest('[data-tagbet]');
+  if (tg){
+    const k = tg.dataset.tagbet;
+    if (tagArmed!==k){ tagArmed = k; renderLab(); setTimeout(() => { if (tagArmed===k){ tagArmed = null; renderLab(); } }, 4000); return; }
+    tagArmed = null; LOG.forEach(r => { if (!r.bet) r.bet = k; }); persist(); return renderLab();
+  }
   const rm = e.target.closest('[data-dsrm]'); if (rm){ IMPORTS = IMPORTS.filter(x => x.id!==rm.dataset.dsrm); saveImports(); return renderLab(); }
   if (e.target.closest('#importBtn')) return document.getElementById('importIn').click();
   const b = e.target.closest('[data-act]'); if (b) return act(b.dataset.act);
@@ -1214,6 +1325,8 @@ sameTog.onchange = () => { SAME = sameTog.checked; setPref('bj-same', SAME ? '1'
 const nameIn = document.getElementById('nameIn');
 nameIn.value = NAME;
 nameIn.onchange = () => { NAME = nameIn.value.trim(); setPref('bj-name', NAME); writeCSV(); renderLab(); };
+document.getElementById('fBet').onchange = e => { FBET = e.target.value; renderLab(); };
+document.getElementById('fTbl').onchange = e => { FTBL = e.target.value; renderLab(); };
 document.getElementById('importIn').onchange = e => { importFiles([...e.target.files]); e.target.value = ''; };
 document.getElementById('daySel').onchange = e => { selDay = e.target.value; renderDash(); };
 document.getElementById('undo').onclick = undo;
@@ -1231,7 +1344,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (card){ if (LAB){ PEND = card; render(); } else onCard(card); }
-  else if (k==='ENTER' && S.phase==='others') saveLabRound();
+  else if (k==='ENTER' && S.phase==='others'){ e.preventDefault(); saveLabRound(); }
   else if (['H','S','D','P'].includes(k)) act(k);
   else if (k==='B' && S.phase==='decide' && S.dec===0 && val(S.dealer)>=10) dealerBlackjack();
   else if (k==='BACKSPACE'){ e.preventDefault(); undo(); }
