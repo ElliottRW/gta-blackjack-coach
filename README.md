@@ -19,7 +19,7 @@ To update later, download the ZIP again and replace the old `blackjack.html`. Yo
 1. Enter **your two cards**, then the **dealer's upcard**.
 2. It shows the best move with a short reason, plus your chance of winning for each possible move.
 3. Make that move in GTA, press the matching button, and enter any card you're dealt. If it says **Hit**, you can just enter the card you got.
-4. When the round ends, tap what the dealer finished on (17–21 or Bust). Tap **I missed it** if you didn't see.
+4. When your hand is done, enter the dealer's cards as they're turned over: first the hole card, then each card they draw. It stops by itself once the dealer reaches 17 or more and works out the result. Or just tap what the dealer finished on (17–21 or Bust), or **I missed it** if you didn't see.
 
 If the dealer shows a 10 or an Ace and turns over blackjack before you move, press **Dealer has blackjack**. A dealer who draws to 21 with three or more cards just has 21, not blackjack.
 
@@ -75,10 +75,10 @@ These tests were checked against simulated games from known shoes. They identifi
 
 ### Recording good data: lab mode
 
-Turn on **Lab mode** on the Play tab. It's slower to enter, but it's what the deck tests need.
+Turn on **Lab mode** on the Play tab. It's slower to enter, but it's what the deck tests need. Switching it on mid-round applies to that round straight away.
 
 - **Suits:** after each card, press its suit (`S` ♠, `H` ♥, `D` ♦, `C` ♣), or `X` if you didn't see it. You can also tap the suit buttons.
-- **Dealer's cards:** when your hand is done, enter the dealer's hole card and each card they draw. It stops by itself once they reach 17. If you miss them, tap their total instead.
+- **Dealer's cards:** enter the dealer's hole card and each card they draw, with suits. It stops by itself once they reach 17. If you miss them, tap their total instead.
 - **Other players' cards:** enter every other card you can see at the table, then press **Save round** (or `Enter`).
 
 Suits make the deck test about ten times more sensitive. As a rough guide, it takes about 200 lab-mode rounds to tell 1 or 2 decks from many, about 500 to tell 4 decks from "every card random", and thousands to separate 6 decks from 8. Two people collecting gets there twice as fast.

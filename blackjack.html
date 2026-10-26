@@ -218,7 +218,7 @@ input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1p
         <button class="btn" id="undo">Undo<kbd>Backspace</kbd></button>
         <button class="btn" id="reset">New hand<kbd>N / Esc</kbd></button>
       </div>
-      <div class="help">Keys: <b>2–9</b>, <b>0</b> or <b>T</b> = 10, <b>J Q K</b>, <b>A</b> = Ace · Moves: <b>H</b>it <b>S</b>tand <b>D</b>ouble s<b>P</b>lit · <b>B</b> = dealer has blackjack. If it says Hit, you can just enter the card you got. In lab mode, press the suit after each card: <b>S H D C</b>, or <b>X</b> if you didn't see it.</div>
+      <div class="help">Keys: <b>2–9</b>, <b>0</b> or <b>T</b> = 10, <b>J Q K</b>, <b>A</b> = Ace · Moves: <b>H</b>it <b>S</b>tand <b>D</b>ouble s<b>P</b>lit · <b>B</b> = dealer has blackjack. If it says Hit, you can just enter the card you got. When your hand is done, enter the dealer's cards as they're turned over, or tap their total. In lab mode, press the suit after each card: <b>S H D C</b>, or <b>X</b> if you didn't see it.</div>
       <div class="sesshead">
         <div><div class="label">This session</div><div class="note" id="sessMeta"></div></div>
         <button class="btn sm" id="newSession">New session</button>
@@ -500,12 +500,13 @@ function recordRound(R){
   if (BET) entry.bet = BET;
   if (TBL) entry.tbl = TBL;
   if (S.lab) Object.assign(entry, {lab: 1, hs: S.hands.map(h => [...(h.suits || [])]), us: S.upSuit || '', dc: [...S.dc], oc: [...S.oc]});
+  else if (S.dc.length) entry.dc = [...S.dc];
   LOG.push(entry);
   persist();
 }
 function finish(R){
   if (S.phase==='done'){ save(); recordRound(R); }
-  else if (S.phase==='dcards'){ save(); toOthers(R); } // lab: total tapped instead of the dealer's cards
+  else if (S.phase==='dcards'){ save(); dealerDone(R); } // total tapped instead of entering the dealer's cards
   else return;
   render();
 }
@@ -517,7 +518,8 @@ function dealerBlackjack(){
   render();
 }
 const dealerCards = () => S.dealer ? [S.dealer, ...S.dc.map(rankOf)] : [];
-function toOthers(R){ S.final = R; S.phase = 'others'; }
+// Dealer's hand is finished: lab mode goes on to other players' cards, otherwise the round is saved
+function dealerDone(R){ S.final = R; if (S.lab) S.phase = 'others'; else recordRound(R); }
 function saveLabRound(){ if (S.phase!=='others') return; save(); recordRound(S.final); render(); }
 
 // ---- CSV ----
@@ -676,19 +678,19 @@ function onCard(r, suit=''){
   if (S.phase==='player'){
     H().cards.push(r); H().suits.push(suit);
     if (H().cards.length===2){
-      if (info(H().cards).total===21){ H().done = true; H().result = 'Blackjack!'; S.phase = S.lab ? 'dcards' : 'done'; }
+      if (info(H().cards).total===21){ H().done = true; H().result = 'Blackjack!'; S.phase = 'dcards'; }
       else S.phase = 'dealer';
     }
   }
   else if (S.phase==='dealer'){ S.dealer = r; S.upSuit = suit; S.phase = 'decide'; }
   else if (S.phase==='await' || S.phase==='decide'){ if (S.phase==='decide') note('H'); H().cards.push(r); H().suits.push(suit); afterCard(); }
-  else if (S.phase==='dcards'){ // lab: dealer's hole card and hits; stops by itself at 17+ (dealer stands on soft 17)
+  else if (S.phase==='dcards'){ // dealer's hole card and hits; stops by itself at 17+ (dealer stands on soft 17)
     if (!S.dealer){ S.dealer = r; S.upSuit = suit; }
     else {
       S.dc.push(r+suit);
       const d = dealerCards(), {total} = info(d);
-      if (S.dbj || (d.length===2 && total===21)) toOthers('bj');
-      else if (total>=17) toOthers(total>21 ? 'bust' : total);
+      if (S.dbj || (d.length===2 && total===21)) dealerDone('bj');
+      else if (total>=17) dealerDone(total>21 ? 'bust' : total);
     }
   }
   else if (S.phase==='others') S.oc.push(r+suit);
@@ -705,9 +707,8 @@ function afterCard(){
 function nextHand(){
   const i = S.hands.findIndex(h => !h.done);
   if (i<0){
-    if (S.lab){ S.phase = 'dcards'; return; }
-    S.phase = 'done';
-    if (S.hands.every(h => h.result==='Bust')) recordRound(null); // dealer's cards don't matter
+    if (!S.lab && S.hands.every(h => h.result==='Bust')){ S.phase = 'done'; recordRound(null); return; } // dealer's cards don't matter
+    S.phase = 'dcards'; // enter the dealer's cards, or tap their total
     return;
   }
   S.active = i; S.phase = S.hands[i].cards.length<2 ? 'await' : 'decide';
@@ -832,7 +833,8 @@ function render(){
           <div class="finals">${[17,18,19,20,21].map(n => `<button class="btn" data-final="${n}">${n}</button>`).join('')}
             <button class="btn" data-final="bust">Bust</button>${natural ? '<button class="btn" data-final="bj">Blackjack</button>' : ''}</div>
           ${allOut ? '<button class="btn missed" data-final="none">Dealer didn\'t draw</button>' : ''}
-          <button class="btn missed" data-final="missed">I missed it</button></div>`;
+          <button class="btn missed" data-final="missed">I missed it</button>
+          <div class="note">Missed rounds are saved, but left out of your win rate unless you bust.</div></div>`;
   } else if (ph==='others'){
     rec = `<div class="rec"><div class="sub">${handSummary()} · ${dealerText(S.final)}</div>
       <div class="note" style="margin-top:10px">${SAME ? "Same table: your friend's own log has their hand, so you can skip it. Enter anyone else's cards." : "Enter every other player's cards you can see. Skip any you missed."} ${S.oc.length} entered.</div>
@@ -1327,7 +1329,7 @@ const labTog = document.getElementById('labTog'), sameTog = document.getElementB
 labTog.checked = LAB; sameTog.checked = SAME;
 labTog.onchange = () => {
   LAB = labTog.checked; setPref('bj-lab', LAB ? '1' : '0'); PEND = null;
-  if (S.phase==='player' && !H().cards.length) S.lab = LAB; // otherwise it applies from the next round
+  if (S.phase!=='recorded') S.lab = LAB; // applies to the round in progress too
   labTog.blur(); render();
 };
 sameTog.onchange = () => { SAME = sameTog.checked; setPref('bj-same', SAME ? '1' : '0'); sameTog.blur(); render(); };
