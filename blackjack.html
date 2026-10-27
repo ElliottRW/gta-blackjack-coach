@@ -260,7 +260,7 @@ input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1p
       <div class="label" style="margin-top:18px">How the tests work</div>
       <div class="methods">
         <p><b>Card mix.</b> Every card you've recorded (yours, the dealer's and other players') is counted and compared with a real deck, where each rank is 1 in 13 and 10-value cards are 4 in 13. The percentage is the chance a fair deal would look at least this uneven: under 5% is worth watching, under 1% is suspicious.</p>
-        <p><b>Dealer results.</b> How often the dealer finished on each total, compared with the exact math for the upcards they actually showed. Dealer blackjacks are listed separately. Rounds where you'd already bust are left out, because the dealer's total only gets recorded then if they didn't need to draw.</p>
+        <p><b>Dealer results.</b> How often the dealer finished on each total, compared with the exact math for the upcards they actually showed. Dealer blackjacks are listed separately. Rounds where you'd already bust or had blackjack are left out: the dealer doesn't draw then, so their total only gets recorded if their first two cards made 17 or more.</p>
         <p><b>Decks.</b> Cards in one round come out of the same shoe. With one deck the exact same card can never appear twice in a round; with more decks it gets a little more likely, and most likely if every card is drawn at random. The tab works out which deck count best explains every round. Suits make this about ten times more sensitive.</p>
         <p><b>Between rounds.</b> If GTA keeps dealing from the same shoe, cards from one round are missing from the next. This compares that with a fresh shuffle each round, looking back up to 10 rounds played within 5 minutes of each other. It only knows the cards you recorded, so it errs towards "not clear yet".</p>
         <p><b>Same table.</b> Rounds you both marked "Same table as a friend", logged within 2 minutes of each other with the same dealer upcard, count as one round, and each card is only counted once.</p>
@@ -1030,10 +1030,10 @@ function tableRounds(sets){
     }
     const cards = [...merged].flatMap(([k,n]) => Array(n).fill({id: k, cls: suited ? clsOf(rankOf(k)) : k, suit: suited ? splitCode(k)[1] : ''}));
     const src = c.items.map(x => x.r).sort((a,b) => (b.dc || []).length - (a.dc || []).length)[0]; // the most complete dealer record
-    // If every logged hand had already bust, the dealer's total only gets recorded when their first two cards were 17+,
-    // which would make the dealer look like they bust less, so dealer-result tests leave these rounds out
-    const allBust = c.items.every(x => x.r.hands.every(h => info(h).total>21));
-    return {t: c.t, items: c.items, cards, suited, up: src.up, final: src.dealer, allBust};
+    // If every logged hand had bust or had blackjack, the dealer doesn't draw, so their total only gets recorded when
+    // their first two cards were 17+. That would make the dealer look like they bust less, so dealer-result tests leave these rounds out
+    const settled = c.items.every(x => x.r.hands.every(h => info(h).total>21 || (x.r.hands.length===1 && h.length===2 && info(h).total===21)));
+    return {t: c.t, items: c.items, cards, suited, up: src.up, final: src.dealer, settled};
   });
 }
 
@@ -1111,7 +1111,7 @@ function binomP(k, n, p){ // exact two-sided binomial p-value, for small counts 
 }
 // The things people claim are rigged, each against the exact expected value for the same rounds
 function claims(gs){
-  const tr = tableRounds(gs), ups = tr.filter(r => r.up), dr = ups.filter(r => !r.allBust && [17,18,19,20,21,'bust'].includes(r.final));
+  const tr = tableRounds(gs), ups = tr.filter(r => r.up), dr = ups.filter(r => !r.settled && [17,18,19,20,21,'bust'].includes(r.final));
   const stat = (rs, prob, hit) => {
     let e = 0, v = 0, o = 0;
     for (const r of rs){ const p = prob(r); e += p; v += p*(1-p); if (hit(r)) o++; }
@@ -1163,7 +1163,7 @@ function renderLab(){
   const sObs = Object.keys(SUITS).map(k => suitedCards.filter(c => c.suit===k).length);
   const suitT = suitedCards.length>=40 ? chiTest(sObs, sObs.map(() => suitedCards.length/4)) : null;
   // Dealer
-  const cats = [17,18,19,20,21,'bust'], dr = rounds.filter(r => r.up && !r.allBust && cats.includes(r.final));
+  const cats = [17,18,19,20,21,'bust'], dr = rounds.filter(r => r.up && !r.settled && cats.includes(r.final));
   const dObs = cats.map(c => dr.filter(r => r.final===c).length), dExp = [0,0,0,0,0,0];
   for (const r of dr) dealerDist(r.up).forEach((p,i) => dExp[i] += p);
   const dealerT = dr.length>=30 ? chiTest(dObs, dExp) : null;
